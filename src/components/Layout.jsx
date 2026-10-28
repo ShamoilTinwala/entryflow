@@ -8,6 +8,9 @@ const titles = {
   "/scanner": "Scanner",
   "/live": "Live Stats",
   "/settings": "Settings",
+  "/my-event": "My Event",
+  "/my-passes": "My Guest Passes",
+  "/supervisor": "Gate Overview",
 };
 
 function pageTitle(pathname) {

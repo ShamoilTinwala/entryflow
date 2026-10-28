@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useApp } from "../context/AppContext";
+import { homeForRole } from "../lib/roles";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -22,12 +23,13 @@ function Login() {
   });
 
   if (user) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={homeForRole(user.role, user.eventId)} replace />;
   }
 
   const onSubmit = (values) => {
-    if (login(values)) {
-      navigate("/admin", { replace: true });
+    const signedInUser = login(values);
+    if (signedInUser) {
+      navigate(homeForRole(signedInUser.role, signedInUser.eventId), { replace: true });
     }
   };
 
@@ -42,7 +44,7 @@ function Login() {
         </h1>
         <p className="text-center text-gray-500 mt-2">Event Entry Management</p>
         <p className="text-center text-sm text-gray-400 mt-2">
-          Local demo login — any valid email and password work.
+          Demo sign-in. Accounts are created by an event administrator. Passwords are not verified in this browser prototype.
         </p>
 
         <div className="mt-8 space-y-4">
@@ -78,6 +80,9 @@ function Login() {
           >
             Login
           </button>
+          <p className="text-xs text-center text-gray-500">
+            First time? Use <span className="font-mono">admin@entryflow.local</span> to access the demo Global Admin account.
+          </p>
         </div>
       </form>
     </div>

@@ -7,6 +7,12 @@ const schema = z.object({
   name: z.string().trim().min(2, "Enter an event name"),
   venue: z.string().trim().min(2, "Enter a venue"),
   date: z.string().min(1, "Choose a date"),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
+  address: z.string().optional(),
+  mapUrl: z.string().optional(),
+  description: z.string().optional(),
+  invitationMessage: z.string().optional(),
 });
 
 function CreateEventModal({ isOpen, onClose }) {
@@ -18,7 +24,7 @@ function CreateEventModal({ isOpen, onClose }) {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", venue: "", date: "" },
+    defaultValues: { name: "", venue: "", date: "", startTime: "", endTime: "", address: "", mapUrl: "", description: "", invitationMessage: "" },
   });
 
   if (!isOpen) return null;
@@ -37,7 +43,7 @@ function CreateEventModal({ isOpen, onClose }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="bg-white rounded-3xl w-full max-w-md p-6"
+        className="max-h-[90dvh] overflow-y-auto bg-white rounded-3xl w-full max-w-2xl p-5 sm:p-6"
       >
         <h2 className="text-2xl font-bold mb-6">Create Event</h2>
 
@@ -79,6 +85,14 @@ function CreateEventModal({ isOpen, onClose }) {
               <p className="text-sm text-red-600 mt-1">{errors.date.message}</p>
             )}
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium">Start time<input type="time" {...register("startTime")} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
+            <label className="block text-sm font-medium">End time<input type="time" {...register("endTime")} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
+          </div>
+          <label className="block text-sm font-medium">Full address<input {...register("address")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="Street, city, region" /></label>
+          <label className="block text-sm font-medium">Map link<input type="url" {...register("mapUrl")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="https://maps.google.com/..." /></label>
+          <label className="block text-sm font-medium">Event information<textarea rows="2" {...register("description")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="Arrival instructions and event details" /></label>
+          <label className="block text-sm font-medium">Default guest invitation message<textarea rows="3" {...register("invitationMessage")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="A short welcome message for every guest" /></label>
         </div>
 
         <div className="flex gap-3 mt-8">
