@@ -6,7 +6,7 @@ import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import HostDetail from "./pages/HostDetail";
 import Scanner from "./pages/Scanner";
-import LiveStats from "./pages/LiveStats";
+import EventInsights from "./pages/EventInsights";
 import Settings from "./pages/Settings";
 import HostPasses from "./pages/HostPasses";
 import Supervisor from "./pages/Supervisor";
@@ -41,7 +41,7 @@ const router = createBrowserRouter([
       { path: "/hosts", element: withRoleAccess(<Hosts />) },
       { path: "/hosts/:id", element: withRoleAccess(<HostDetail />) },
       { path: "/scanner", element: withRoleAccess(<Scanner />) },
-      { path: "/live", element: withRoleAccess(<LiveStats />) },
+      { path: "/live", element: withRoleAccess(<EventInsights />) },
       { path: "/settings", element: withRoleAccess(<Settings />) },
     ],
   },
