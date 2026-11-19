@@ -23,17 +23,17 @@ function Layout() {
   const { pathname } = useLocation();
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen flex-col bg-gray-100 md:flex-row">
       <Sidebar />
 
       <div className="flex-1 min-w-0">
-        <header className="bg-white border-b px-8 py-5">
+        <header className="bg-white border-b px-4 py-3 md:px-8 md:py-5">
           <h2 className="text-3xl font-bold text-gray-800">
             {pageTitle(pathname)}
           </h2>
         </header>
 
-        <main className="p-8">
+        <main className="p-3 sm:p-5 md:p-8">
           <Outlet />
         </main>
       </div>

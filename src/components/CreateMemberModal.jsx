@@ -8,7 +8,7 @@ const rolesForCreator = {
 };
 
 function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
-  const { user, events, createMember } = useApp();
+  const { user, hosted, events, createMember } = useApp();
   const selectableEvents = user?.role === ROLES.GLOBAL_ADMIN ? events : events.filter((event) => event.id === Number(user?.eventId));
   const defaultEventId = eventId ?? user?.eventId ?? (selectableEvents.length === 1 ? selectableEvents[0].id : "");
   const initialForm = () => ({ eventId: String(defaultEventId), role: onlyRole ?? ROLES.HOST, name: "", email: "", capacity: "10" });
@@ -17,9 +17,9 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
   if (!isOpen) return null;
   const roles = onlyRole ? [onlyRole] : rolesForCreator[user?.role] ?? [];
   const needsQuota = form.role === ROLES.HOST;
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
-    const member = createMember({ ...form, eventId: Number(form.eventId), capacity: Number(form.capacity) });
+    const member = await createMember({ ...form, eventId: Number(form.eventId), capacity: Number(form.capacity) });
     if (member) { setForm(initialForm()); onClose(); }
   };
 
@@ -51,7 +51,7 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
         {needsQuota && <label className="block text-sm font-medium">Guest allocation
           <input required type="number" min="1" step="1" className="mt-2 w-full rounded-xl border px-4 py-3" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
         </label>}
-        <p className="text-xs text-gray-500">Demo account only: login emails are stored in this browser; passwords are not verified.</p>
+        <p className="text-xs text-gray-500">{hosted ? "Use a confirmed email account from Supabase Authentication, or create a one-time invite for passwordless access." : "Demo accounts are stored in this browser."}</p>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={() => { setForm(initialForm()); onClose(); }} className="flex-1 rounded-xl border py-3">Cancel</button>
           <button type="submit" className="flex-1 rounded-xl bg-blue-600 py-3 font-semibold text-white">Create account</button>

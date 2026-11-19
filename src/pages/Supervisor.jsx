@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { peopleInside } from "../lib/occupancy";
+import { toast } from "sonner";
+import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { ROLES } from "../lib/roles";
 
 function Supervisor() {
   const { user, event, events, hosts, guests, entries, audit, manualCheckIn, checkOut, reverseEntry } = useApp();
   const [adminEventId, setAdminEventId] = useState(String(events.find((item) => item.status === "Live")?.id ?? events[0]?.id ?? ""));
-  const assignedEvent = user?.role === ROLES.GLOBAL_ADMIN ? events.find((item) => item.id === Number(adminEventId)) : event;
+  const assignedEvent = user?.role === ROLES.GLOBAL_ADMIN ? (events.find((item) => item.id === Number(adminEventId)) ?? events[0]) : event;
   const [checkForm, setCheckForm] = useState({ code: "", count: 1, gate: "Main Gate", name: "" });
   const [checkoutForm, setCheckoutForm] = useState({ code: "", sourceEntryId: "", count: 1, gate: "Main Gate" });
   const [reasonFor, setReasonFor] = useState(null);
@@ -13,41 +15,36 @@ function Supervisor() {
   const assignedPasses = guests.filter((pass) => pass.eventId === assignedEvent?.id);
   const assignedEntries = [...entries].filter((entry) => entry.eventId === assignedEvent?.id).reverse();
   const assignedAudit = [...audit].filter((activity) => activity.eventId === assignedEvent?.id).reverse();
-  const activeInside = useMemo(() => {
-    const passInside = assignedPasses.reduce((sum, pass) => sum + Number(pass.insideCount || 0), 0);
-    const unlistedInside = assignedEntries.filter((entry) => entry.action === "manual-check-in" && !entry.reversedAt).reduce((sum, entry) => {
-      const checkedOut = assignedEntries.filter((item) => item.action === "check-out" && item.sourceEntryId === entry.id && !item.reversedAt).reduce((count, item) => count + Number(item.count || 0), 0);
-      return sum + Math.max(Number(entry.count || 0) - checkedOut, 0);
-    }, 0);
-    return passInside + unlistedInside;
-  }, [assignedPasses, assignedEntries]);
-  const admitted = useMemo(() => assignedEntries.filter((entry) => entry.action.includes("check-in") && !entry.reversedAt).reduce((sum, entry) => sum + Number(entry.count || 1), 0), [assignedEntries]);
+  const activeInside = peopleInside(assignedPasses, assignedEntries);
+  const admitted = assignedEntries.filter((entry) => entry.action.includes("check-in") && !entry.reversedAt).reduce((sum, entry) => sum + Number(entry.count || 1), 0);
   const gates = [...new Set(assignedEntries.map((entry) => entry.gate).filter(Boolean))];
   const unlistedInsideEntries = assignedEntries.filter((entry) => entry.action === "manual-check-in" && !entry.reversedAt).map((entry) => {
     const checkedOut = assignedEntries.filter((item) => item.action === "check-out" && item.sourceEntryId === entry.id && !item.reversedAt).reduce((sum, item) => sum + Number(item.count || 0), 0);
     return { ...entry, remainingInside: Math.max(Number(entry.count || 0) - checkedOut, 0) };
   }).filter((entry) => entry.remainingInside > 0);
 
-  if (!assignedEvent) return <p className="rounded-2xl bg-white p-6">No event is assigned to this account.</p>;
-  const submitCheckIn = (e) => {
+  if (!assignedEvent && !(user?.role === ROLES.GLOBAL_ADMIN && events.length)) return <p className="rounded-2xl bg-white p-6">No event is assigned to this account.</p>;
+  const submitCheckIn = async (e) => {
     e.preventDefault();
-    const result = manualCheckIn({ eventId: assignedEvent.id, ...checkForm });
+    const result = await manualCheckIn({ eventId: assignedEvent.id, ...checkForm });
+    if (!result.ok) toast.error(result.message);
     if (result.ok) setCheckForm({ code: "", count: 1, gate: checkForm.gate, name: "" });
   };
-  const submitCheckOut = (e) => {
+  const submitCheckOut = async (e) => {
     e.preventDefault();
     const pass = assignedPasses.find((item) => item.code.toUpperCase() === checkoutForm.code.trim().toUpperCase());
     const result = pass
-      ? checkOut({ passId: pass.id, count: Number(checkoutForm.count), gate: checkoutForm.gate })
+      ? await checkOut({ passId: pass.id, count: Number(checkoutForm.count), gate: checkoutForm.gate })
       : checkoutForm.sourceEntryId
-        ? checkOut({ sourceEntryId: Number(checkoutForm.sourceEntryId), count: Number(checkoutForm.count), gate: checkoutForm.gate })
+        ? await checkOut({ sourceEntryId: Number(checkoutForm.sourceEntryId), count: Number(checkoutForm.count), gate: checkoutForm.gate })
         : { ok: false, message: "Enter a pass code or select an unlisted entry" };
+    if (!result.ok) toast.error(result.message);
     if (result.ok) setCheckoutForm({ ...checkoutForm, code: "", sourceEntryId: "", count: 1 });
   };
-  const submitReverse = (entryId) => { reverseEntry(entryId, reason); setReasonFor(null); setReason(""); };
+  const submitReverse = async (entryId) => { if (!await reverseEntry(entryId, reason)) return; setReasonFor(null); setReason(""); };
 
   return <div className="space-y-6">
-    <section className="rounded-2xl bg-white p-6 shadow"><p className="text-sm text-gray-500">{user?.role} · gate overview</p><h2 className="mt-1 text-2xl font-bold">{assignedEvent.name}</h2><p className="mt-1 text-gray-500">{assignedEvent.venue} · {assignedEvent.date} · {assignedEvent.status}</p>{user?.role === ROLES.GLOBAL_ADMIN && <label className="mt-4 block text-sm font-medium">Event<select className="mt-2 w-full rounded-xl border bg-white px-4 py-3" value={adminEventId} onChange={(e) => setAdminEventId(e.target.value)}>{events.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</section>
+    <section className="rounded-2xl bg-white p-6 shadow"><p className="text-sm text-gray-500">{user?.role} · gate overview</p><h2 className="mt-1 text-2xl font-bold">{assignedEvent.name}</h2><p className="mt-1 text-gray-500">{assignedEvent.venue} · {assignedEvent.date} · {assignedEvent.status}</p>{user?.role === ROLES.GLOBAL_ADMIN && <label className="mt-4 block text-sm font-medium">Event<select className="mt-2 w-full rounded-xl border bg-white px-4 py-3" value={assignedEvent.id} onChange={(e) => setAdminEventId(e.target.value)}>{events.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}</section>
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">{[{ label: "Guests admitted", value: admitted }, { label: "Currently inside", value: activeInside }, { label: "Hosts", value: hosts.filter((host) => host.eventId === assignedEvent.id && host.active !== false).length }, { label: "Gates active", value: gates.length }].map((item) => <div key={item.label} className="rounded-2xl bg-white p-5 shadow"><p className="text-sm text-gray-500">{item.label}</p><p className="mt-1 text-3xl font-bold">{item.value}</p></div>)}</div>
 
     <div className="grid gap-6 xl:grid-cols-2">

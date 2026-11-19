@@ -34,9 +34,8 @@ function CreateEventModal({ isOpen, onClose }) {
     onClose();
   };
 
-  const onSubmit = (values) => {
-    createEvent(values);
-    close();
+  const onSubmit = async (values) => {
+    if (await createEvent(values)) close();
   };
 
   return (

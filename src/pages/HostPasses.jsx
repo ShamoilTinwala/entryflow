@@ -22,14 +22,14 @@ function HostPasses({ hostId: selectedHostId }) {
 
   if (!host || !assignedEvent) return <p className="rounded-2xl bg-white p-6 text-gray-600">Host account not found or inactive.</p>;
 
-  const createPass = (e) => {
+  const createPass = async (e) => {
     e.preventDefault();
-    const pass = createGuest({ eventId: assignedEvent.id, hostId: host.id, name: form.primaryName, count: form.count });
+    const pass = await createGuest({ eventId: assignedEvent.id, hostId: host.id, name: form.primaryName, count: form.count });
     if (pass) setForm({ primaryName: "", count: 1 });
   };
-  const savePass = (e, passId) => {
+  const savePass = async (e, passId) => {
     e.preventDefault();
-    if (updateGuest(passId, { primaryName: editForm.primaryName.trim(), totalCount: Number(editForm.totalCount) })) setEditingId(null);
+    if (await updateGuest(passId, { primaryName: editForm.primaryName.trim(), totalCount: Number(editForm.totalCount) })) setEditingId(null);
   };
   const beginEdit = (pass) => { setEditingId(pass.id); setEditForm({ primaryName: pass.primaryName, totalCount: pass.totalCount }); };
   const isLocked = (pass) => Boolean(pass.lockedAt || pass.enteredCount > 0);

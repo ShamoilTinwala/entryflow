@@ -6,7 +6,7 @@ import { eventInvitation } from "../lib/sharing";
 export default function PublicPass() {
   const { code } = useParams();
   const { allEvents, guests } = useApp();
-  const pass = guests.find((item) => item.code === decodeURIComponent(code) && !item.deletedAt);
+  const pass = guests.find((item) => item.code === code && !item.deletedAt);
   const event = pass && allEvents.find((item) => item.id === pass.eventId && !item.deletedAt);
   if (!pass || !event) return <main className="grid min-h-dvh place-items-center p-5"><p>Guest pass not found.</p></main>;
   const departed = Math.max(Number(pass.enteredCount) - Number(pass.insideCount), 0);

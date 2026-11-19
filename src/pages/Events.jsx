@@ -15,7 +15,7 @@ function Events() {
       {events.map((event) => {
         const eventHosts = hosts.filter((host) => host.eventId === event.id && host.active !== false);
         const superhosts = members.filter((member) => member.eventId === event.id && member.role === ROLES.SUPERHOST && member.active !== false).length;
-        return <EventCard key={event.id} event={event} superHosts={superhosts} hosts={eventHosts.length} entries={entries.filter((entry) => entry.eventId === event.id && !entry.reversedAt).reduce((sum, entry) => sum + Number(entry.count || 1), 0)} />;
+        return <EventCard key={event.id} event={event} superHosts={superhosts} hosts={eventHosts.length} entries={entries.filter((entry) => entry.eventId === event.id && !entry.reversedAt && entry.action.includes("check-in")).reduce((sum, entry) => sum + Number(entry.count || 1), 0)} />;
       })}
       <button type="button" onClick={() => setShowModal(true)} className="w-full rounded-2xl bg-blue-600 py-4 text-lg font-semibold text-white hover:bg-blue-700">+ Create Event</button>
     </div>

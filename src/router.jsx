@@ -5,7 +5,10 @@ import Hosts from "./pages/Hosts";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import HostDetail from "./pages/HostDetail";
-import Scanner from "./pages/Scanner";
+import { lazy, Suspense } from "react";
+// This route module exports the router, while the camera screen loads on demand.
+// eslint-disable-next-line react-refresh/only-export-components
+const Scanner = lazy(() => import("./pages/Scanner"));
 import EventInsights from "./pages/EventInsights";
 import Settings from "./pages/Settings";
 import HostPasses from "./pages/HostPasses";
@@ -40,7 +43,7 @@ const router = createBrowserRouter([
       { path: "/events/:id", element: withRoleAccess(<EventDetail />) },
       { path: "/hosts", element: withRoleAccess(<Hosts />) },
       { path: "/hosts/:id", element: withRoleAccess(<HostDetail />) },
-      { path: "/scanner", element: withRoleAccess(<Scanner />) },
+      { path: "/scanner", element: withRoleAccess(<Suspense fallback={<p>Opening scanner…</p>}><Scanner /></Suspense>) },
       { path: "/live", element: withRoleAccess(<EventInsights />) },
       { path: "/settings", element: withRoleAccess(<Settings />) },
     ],

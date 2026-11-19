@@ -15,8 +15,8 @@ function AccountInvites({ event }) {
       : user?.role === ROLES.HOST ? [ROLES.GATE_SCANNER] : [];
   const eventInvites = invites.filter((invite) => invite.eventId === event.id).reverse();
 
-  const makeInvite = () => {
-    const invite = createInvite({ eventId: event.id, role, capacity, expiresInHours: 48 });
+  const makeInvite = async () => {
+    const invite = await createInvite({ eventId: event.id, role, capacity, expiresInHours: 48 });
     if (!invite) return;
     const link = publicUrl(`/invite/${invite.token}`);
     copyText(`${event.name} · ${role} invite\n${link}`).then(() => toast.success("One-time invite link copied")).catch(() => toast.error("Could not copy invite link"));
@@ -33,7 +33,7 @@ function AccountInvites({ event }) {
     {eventInvites.length > 0 && <div className="mt-4 space-y-2">{eventInvites.map((invite) => {
       const expired = new Date(invite.expiresAt) <= new Date();
       const status = invite.claimedAt ? "Claimed" : invite.revokedAt ? "Revoked" : expired ? "Expired" : "Ready";
-      return <div key={invite.id} className="flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{invite.role} · {status}</p><p className="text-xs text-gray-500">Expires {new Date(invite.expiresAt).toLocaleString()}</p></div><div className="flex gap-2">{status === "Ready" && <><button onClick={() => copyText(`${event.name} · one-time ${invite.role} invite\n${publicUrl(`/invite/${invite.token}`)}`).then(() => toast.success("Invite copied")).catch(() => toast.error("Could not copy link"))} className="min-h-10 rounded-lg border px-3 text-sm">Copy link</button><button onClick={() => shareInvite(invite)} className="min-h-10 rounded-lg border px-3 text-sm">WhatsApp</button><button onClick={() => { if (revokeInvite(invite.id)) toast.success("Invite revoked"); }} className="min-h-10 rounded-lg border border-red-200 px-3 text-sm text-red-700">Revoke</button></>}</div></div>;
+      return <div key={invite.id} className="flex flex-col gap-2 rounded-xl border p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium">{invite.role} · {status}</p><p className="text-xs text-gray-500">Expires {new Date(invite.expiresAt).toLocaleString()}</p></div><div className="flex gap-2">{status === "Ready" && <><button onClick={() => copyText(`${event.name} · one-time ${invite.role} invite\n${publicUrl(`/invite/${invite.token}`)}`).then(() => toast.success("Invite copied")).catch(() => toast.error("Could not copy link"))} className="min-h-10 rounded-lg border px-3 text-sm">Copy link</button><button onClick={() => shareInvite(invite)} className="min-h-10 rounded-lg border px-3 text-sm">WhatsApp</button><button onClick={async () => { if (await revokeInvite(invite.id)) toast.success("Invite revoked"); }} className="min-h-10 rounded-lg border border-red-200 px-3 text-sm text-red-700">Revoke</button></>}</div></div>;
     })}</div>}
   </section>;
 }

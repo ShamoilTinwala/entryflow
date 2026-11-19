@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 function Login() {
-  const { user, login } = useApp();
+  const { user, login, hosted } = useApp();
   const navigate = useNavigate();
   const {
     register,
@@ -26,8 +26,8 @@ function Login() {
     return <Navigate to={homeForRole(user.role, user.eventId)} replace />;
   }
 
-  const onSubmit = (values) => {
-    const signedInUser = login(values);
+  const onSubmit = async (values) => {
+    const signedInUser = await login(values);
     if (signedInUser) {
       navigate(homeForRole(signedInUser.role, signedInUser.eventId), { replace: true });
     }
@@ -44,7 +44,7 @@ function Login() {
         </h1>
         <p className="text-center text-gray-500 mt-2">Event Entry Management</p>
         <p className="text-center text-sm text-gray-400 mt-2">
-          Demo sign-in. Accounts are created by an event administrator. Passwords are not verified in this browser prototype.
+          {hosted ? "Sign in with the email registered by your event administrator." : "Local demo sign-in. Use any password of four or more characters."}
         </p>
 
         <div className="mt-8 space-y-4">
@@ -80,9 +80,9 @@ function Login() {
           >
             Login
           </button>
-          <p className="text-xs text-center text-gray-500">
+          {!hosted && <p className="text-xs text-center text-gray-500">
             First time? Use <span className="font-mono">admin@entryflow.local</span> to access the demo Global Admin account.
-          </p>
+          </p>}
         </div>
       </form>
     </div>

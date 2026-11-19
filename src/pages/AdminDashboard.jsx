@@ -1,3 +1,4 @@
+import { peopleInside } from "../lib/occupancy";
 import { Link } from "react-router-dom";
 import StatCard from "../components/StatCard";
 import { useApp } from "../context/AppContext";
@@ -5,7 +6,7 @@ import { useApp } from "../context/AppContext";
 function AdminDashboard() {
   const { stats, events, hosts, guests, entries, audit } = useApp();
   const liveEvents = events.filter((item) => item.status === "Live");
-  const inside = guests.reduce((sum, pass) => sum + Number(pass.insideCount || 0), 0);
+  const inside = peopleInside(guests, entries);
   const activeHosts = hosts.filter((host) => host.active !== false).length;
   const activeEntries = entries.filter((entry) => !entry.reversedAt && entry.action.includes("check-in"));
 

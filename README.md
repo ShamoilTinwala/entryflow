@@ -1,29 +1,48 @@
 # EntryFlow
 
-Event registration and gate-entry management UI. The current application runtime is still a browser prototype: its app data is stored in localStorage and is not synchronized across devices. The Supabase migration under `supabase/migrations` is the starting server-side schema for a hosted backend; the UI does not yet use it for authentication or data access.
+Event passes and gate check-in for a multi-device team. The production build uses the same-origin Vercel function at `/api/entryflow`, backed by Supabase Postgres. Online gates wait for a committed response before showing admission. Other connected screens poll every four seconds.
 
-## Run locally
+## Deploy on Vercel
 
-```bash
-npm install
+1. Create a Supabase project. In its SQL Editor, run **supabase/migrations/202611190001_hosted_store.sql**. It creates one protected application-state row. The older October migration is a separate schema prototype. The hosted API only uses the November migration. If you already use the October tables for real data, migrate those records separately before switching.
+2. In Supabase **Authentication / Users**, create a confirmed admin user with an email and password you control. Copy the user's UUID. Anonymous sign-in is unnecessary for this version. Device invites use a server-issued session.
+3. Push this version of the repository to your Git provider, then import it into Vercel. Select **Vite**, the repository root, Node.js **22.x**, build command `npm run build`, and output directory `dist`. Deploy the full repository so Vercel includes the Node function. A static upload of dist only serves the interface.
+4. In the Vercel project's **Settings / Environment Variables**, add the variables below for Production. Use a separate Supabase project and admin UUID if you enable Preview deployments. Redeploy after setting or changing variables.
+5. Use a stable HTTPS domain for all team and guest links. Open the deployment, sign in with the confirmed admin email and password, and create an event. New installations start empty.
+
+| Vercel variable | Value |
+| --- | --- |
+| SUPABASE_URL | Your project's HTTPS URL |
+| SUPABASE_PUBLISHABLE_KEY | Supabase publishable key or legacy anon key, used for password verification |
+| SUPABASE_SECRET_KEY | Supabase secret key or legacy service_role key, used only by the server function |
+| ENTRYFLOW_ADMIN_USER_ID | UUID copied from the confirmed administrator's Auth user |
+
+Keep these values in Vercel's environment settings. The secret key must never have a VITE_ prefix. The Data API must be enabled for the public schema; browser roles have no access to the application-state table.
+
+## First event and device check
+
+- Set the event to **Live** before admitting people. Create a Host invite, open it on the host's device, and issue a two-person pass. A named team member using a password also needs a confirmed Supabase Auth user matching the email assigned in EntryFlow.
+- Open the guest pass link from another browser. Create a separate Gate Scanner invite per device. On supported browsers use the camera; manual pass-code entry is also available.
+- Admit one person at gate A. Gate B should show one remaining after its next refresh. Have both gates try for the final spot. Only one admission should succeed. Confirm the result from Supervisor, then undo from the winning scanner and verify the remaining count.
+- Disconnect a scanner and try a check-in. An interrupted response can mean the server already recorded it. Reconnect, check the pass and activity, then retry the same action if needed. A disconnected scanner cannot independently authorize entry.
+- Staff device sessions last 30 days. Removing access takes effect on the next server request. Issuing a fresh invite restores access after a device account signs out or loses its session. Password-based staff sign in again with their credentials.
+
+## Local development
+
+Use Node.js 22.12 or later.
+
+```sh
+npm ci
 npm run dev
+npm test
+npm run lint
+npm run build
 ```
 
-Use `admin@entryflow.local` and any password of at least 4 characters for the demo Global Admin. Demo accounts, invite links, and public guest pages only work in the browser storage that created them.
+Plain Vite development uses the existing local browser demo. Its admin login is admin@entryflow.local with any password of four or more characters. Demo browser records stay on that browser. To exercise the hosted path locally, copy .env.example to .env.local, fill in a development project's credentials, set VITE_HOSTED=true, and run `vercel dev`. Production builds always use the hosted API.
 
-## Vercel preview hosting
+## Storage and verification
 
-Import this repository in Vercel and use the default Vite build settings (`npm run build`, output directory `dist`). `vercel.json` enables SPA route refreshes. This hosts the frontend only; it does not make localStorage shared or secure.
+Each successful mutation writes its updated state, audit entry and retry receipt together using a Postgres revision check. Conflicting writes reload the latest state and re-evaluate role, quota and remaining admission counts. The API filters responses by event and role. Public links use random bearer tokens. The reference implementation stores a single JSON document and rewrites it on mutation, so benchmark the actual hosted event size and gate traffic before event day.
 
-## Supabase backend foundation
-
-1. Create a separate Supabase project for development/testing.
-2. Apply `supabase/migrations/202610280001_entryflow_core.sql` after reviewing it for your project.
-3. Enable anonymous sign-ins only if you intend to use the agreed one-use, device-bound invite flow. The migration's `claim_account_invite` function expects an authenticated anonymous device session.
-4. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in local `.env.local` and in Vercel Preview environment variables. Never put a service-role key in a `VITE_` variable or browser code.
-
-The migration establishes event-scoped tables, role-aware RLS policies, one-time invite claiming, and a projection-only public guest pass read. The application still needs a server-backed data adapter and manager-only provisioning functions before these rules take effect in the UI. Do not use production data until that integration and an authorization review are complete.
-
-## Stack
-
-Vite, React 19, React Router 7, Tailwind CSS 4, React Hook Form, Zod, Sonner.
+`npm test` exercises the Vercel handler against a simulated Supabase Auth and PostgREST transport, including competing scans, one-use invites, undo, occupancy and access removal. The two-device preview check above also verifies the actual hosting configuration.
