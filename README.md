@@ -22,10 +22,10 @@ Keep these values in Vercel's environment settings. The secret key must never ha
 ## First event and device check
 
 - Set the event to **Live** before admitting people. Create a Host invite, open it on the host's device, and issue a two-person pass. A named team member using a password also needs a confirmed Supabase Auth user matching the email assigned in EntryFlow.
-- Open the guest pass link from another browser. Create a separate Gate Scanner invite per device. On supported browsers use the camera; manual pass-code entry is also available.
+- Open the guest pass link from another browser. Use the same Gate Scanner sign-in link on multiple devices to share one account. On supported browsers use the camera; manual pass-code entry is also available.
 - Admit one person at gate A. Gate B should show one remaining after its next refresh. Have both gates try for the final spot. Only one admission should succeed. Confirm the result from Supervisor, then undo from the winning scanner and verify the remaining count.
 - Disconnect a scanner and try a check-in. An interrupted response can mean the server already recorded it. Reconnect, check the pass and activity, then retry the same action if needed. A disconnected scanner cannot independently authorize entry.
-- Staff device sessions last 30 days. Removing access takes effect on the next server request. Issuing a fresh invite restores access after a device account signs out or loses its session. Password-based staff sign in again with their credentials.
+- Staff device sessions last 30 days. Removing access takes effect on the next server request. Reopen the same link after signing out or switching devices. Revoking the link blocks further sign-ins and existing sessions on their next request. Password-based staff sign in again with their credentials.
 
 ## Local development
 
@@ -45,4 +45,4 @@ Plain Vite development uses the existing local browser demo. Its admin login is 
 
 Each successful mutation writes its updated state, audit entry and retry receipt together using a Postgres revision check. Conflicting writes reload the latest state and re-evaluate role, quota and remaining admission counts. The API filters responses by event and role. Public links use random bearer tokens. The reference implementation stores a single JSON document and rewrites it on mutation, so benchmark the actual hosted event size and gate traffic before event day.
 
-`npm test` exercises the Vercel handler against a simulated Supabase Auth and PostgREST transport, including competing scans, one-use invites, undo, occupancy and access removal. The two-device preview check above also verifies the actual hosting configuration.
+`npm test` exercises the Vercel handler against a simulated Supabase Auth and PostgREST transport, including competing scans, reusable sign-in links, undo, occupancy and access removal. The two-device preview check above also verifies the actual hosting configuration.

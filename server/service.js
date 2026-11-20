@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { eventCommands, nextId } from "../src/lib/commands.js";
+import { eventCommands, nextId, usableInvite } from "../src/lib/commands.js";
 import { commands } from "./validation.js";
 
 export const secret = () => randomBytes(32).toString("hex");
@@ -12,6 +12,10 @@ function sessionUser(data, token) {
   const hash = token && digest(token);
   const session = hash && data.sessions.find(s => s.hash === hash && s.until > Date.now());
   const person = session && [...data.members,...data.hosts].find(p => p.id === session.account && p.active);
+  if (person?.deviceBound) {
+    const invite = data.invites.find(i => i.claimedAccountId === person.id);
+    if (!usableInvite(data, invite)) return null;
+  }
   if (!person || (person.eventId && !data.events.some(e => e.id === person.eventId && !e.deletedAt))) return null;
   return person;
 }
@@ -20,7 +24,7 @@ function snapshot(data, user, path) {
   const [kind, token] = path.split("/").slice(1);
   if (["pass","invite","event-invitation"].includes(kind)) {
     const pass = kind === "pass" && data.guests.find(p => p.code === token && !p.deletedAt);
-    const invite = kind === "invite" && data.invites.find(i => i.token === token && !i.claimedAt && !i.revokedAt && Date.parse(i.expiresAt) > Date.now());
+    const invite = kind === "invite" && data.invites.find(i => i.token === token && usableInvite(data, i));
     const event = data.events.find(e => !e.deletedAt && (kind === "event-invitation" ? e.invitationToken === token : e.id === (pass || invite)?.eventId));
     if (event) {
       const {id,name,venue,date,address,mapUrl,description,invitationMessage,startTime,endTime} = event;
@@ -30,12 +34,15 @@ function snapshot(data, user, path) {
         const {eventId,code,primaryName,totalCount,enteredCount,insideCount} = pass;
         result.guests = [{eventId,code,primaryName,totalCount,enteredCount,insideCount}];
       }
-      if (invite) result.invites = [{token, eventId:event.id, role:invite.role, expiresAt:invite.expiresAt}];
+      if (invite) result.invites = [{token, eventId:event.id, role:invite.role, available:true}];
     }
     return result;
   }
   if (!user) return result;
-  if (user.role === "Global Admin") return Object.fromEntries(Object.keys(result).map(k=>[k,data[k]]));
+  const withStatus = invite => ({ ...invite, available: usableInvite(data, invite) });
+  if (user.role === "Global Admin") {
+    return { ...Object.fromEntries(Object.keys(result).map(k=>[k,data[k]])), invites: data.invites.map(withStatus) };
+  }
   const scoped = key => data[key].filter(item => item.eventId === user.eventId);
   const manager = user.role === "Superhost";
   const supervisor = user.role === "Supervisor";
@@ -45,7 +52,7 @@ function snapshot(data, user, path) {
   result.members = scoped("members").filter(m => manager || m.id === user.id);
   result.guests = scoped("guests").filter(p=> !host || p.hostId === user.id);
   result.entries = scoped("entries").filter(e=> manager || supervisor || (host ? e.hostId === user.id : e.actorId === user.id));
-  result.invites = scoped("invites").filter(i=> manager || (host && i.createdBy === user.id));
+  result.invites = scoped("invites").filter(i=> (manager && i.role !== "Superhost") || (host && i.createdBy === user.id)).map(withStatus);
   result.audit = manager || supervisor ? scoped("audit") : [];
   return result;
 }
@@ -65,7 +72,7 @@ export function operation(original, request) {
   const commit = (updated, actionName, eventId, target, details = {}, actor = user) => {
     data = {...updated, audit:[...updated.audit,{id:nextId(updated.audit),action:actionName,eventId,target,details,actorId:actor?.id,actorName:actor?.name,actorRole:actor?.role,createdAt:new Date().toISOString()}]};
   };
-  const actions = eventCommands({data, user, commit, deviceLabel:"Browser", toast:{
+  const actions = eventCommands({data, user, commit, scanSession:token ? digest("scan:" + token) : undefined, toast:{
     error: m => { throw new RequestError(m,409); }, success: m => {message=m;},
   }});
   if (action === "claimInvite") {
@@ -88,7 +95,7 @@ export function operation(original, request) {
       commit(data,"sign-in",user.eventId,user.email);
     } else {
       user = actions.claimInvite(args[0]);
-      if (!user) throw new RequestError("Invite expired, revoked or already used.",409);
+      if (!user) throw new RequestError("This sign-in link is unavailable. Ask your event manager for an active link.",409);
     }
     cookie = newToken;
     const sessions = data.sessions.filter(s=>s.until>Date.now() && (!token || s.hash !== digest(token)));

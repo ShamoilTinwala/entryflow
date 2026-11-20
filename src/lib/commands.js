@@ -9,7 +9,18 @@ function makeCode(eventId, hostId) {
   return `EF-${eventId}-${hostId}-${token}`.toUpperCase();
 }
 
-export function eventCommands({ data, user, commit, toast, deviceLabel: platformLabel }) {
+export function usableInvite(data, invite) {
+  if (!invite || invite.revokedAt) return false;
+  if (invite.claimedAccountId != null) {
+    return [...data.members, ...data.hosts].some(account =>
+      account.id === invite.claimedAccountId && account.active !== false &&
+      account.role === invite.role && account.eventId === invite.eventId);
+  }
+  // Keep an expired, unused legacy invitation closed.
+  return !invite.claimedAt && (!invite.expiresAt || Date.parse(invite.expiresAt) > Date.now());
+}
+
+export function eventCommands({ data, user, commit, toast, scanSession }) {
   const allAccounts = [...data.members, ...data.hosts];
   const createEvent = ({ name, venue, date, startTime = "", endTime = "", address = "", mapUrl = "", description = "", invitationMessage = "" }) => {
     if (user?.role !== ROLES.GLOBAL_ADMIN) return null;
@@ -69,7 +80,7 @@ export function eventCommands({ data, user, commit, toast, deviceLabel: platform
     return member;
   };
 
-  const createInvite = ({ eventId, role, capacity = 10, expiresInHours = 48 }) => {
+  const createInvite = ({ eventId, role, capacity = 10 }) => {
     const event = data.events.find((item) => item.id === Number(eventId) && !item.deletedAt);
     const allowedRoles = user?.role === ROLES.GLOBAL_ADMIN
       ? [ROLES.SUPERHOST, ROLES.HOST, ROLES.SUPERVISOR, ROLES.GATE_SCANNER]
@@ -80,15 +91,15 @@ export function eventCommands({ data, user, commit, toast, deviceLabel: platform
           : [];
     if (!event || !allowedRoles.includes(role)) return null;
     const token = globalThis.crypto?.randomUUID?.().replaceAll("-", "") ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
-    const invite = { id: crypto.randomUUID().replaceAll("-", "").slice(0, 20), token, eventId: event.id, role, capacity: role === ROLES.HOST ? Math.max(1, Number(capacity) || 10) : null, createdBy: user.id, createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString(), claimedAt: null, revokedAt: null };
+    const invite = { id: crypto.randomUUID().replaceAll("-", "").slice(0, 20), token, eventId: event.id, role, capacity: role === ROLES.HOST ? Math.max(1, Number(capacity) || 10) : null, createdBy: user.id, createdAt: new Date().toISOString(), expiresAt: null, claimedAt: null, revokedAt: null };
     commit({ ...data, invites: [...(data.invites ?? []), invite] }, "account-invite-created", event.id, role, { expiresAt: invite.expiresAt });
     return invite;
   };
 
   const revokeInvite = (inviteId) => {
-    const invite = (data.invites ?? []).find((item) => item.id === inviteId && !item.claimedAt && !item.revokedAt);
+    const invite = (data.invites ?? []).find((item) => item.id === inviteId && !item.revokedAt);
     if (!invite) return false;
-    const canManage = user?.role === ROLES.GLOBAL_ADMIN || (user?.role === ROLES.SUPERHOST && Number(user.eventId) === invite.eventId) || (user?.role === ROLES.HOST && invite.createdBy === user.id && invite.role === ROLES.GATE_SCANNER && Number(user.eventId) === invite.eventId);
+    const canManage = user?.role === ROLES.GLOBAL_ADMIN || (user?.role === ROLES.SUPERHOST && invite.role !== ROLES.SUPERHOST && Number(user.eventId) === invite.eventId) || (user?.role === ROLES.HOST && invite.createdBy === user.id && invite.role === ROLES.GATE_SCANNER && Number(user.eventId) === invite.eventId);
     if (!canManage) return false;
     const invites = data.invites.map((item) => item.id === invite.id ? { ...item, revokedAt: new Date().toISOString() } : item);
     commit({ ...data, invites }, "account-invite-revoked", invite.eventId, invite.role);
@@ -96,13 +107,16 @@ export function eventCommands({ data, user, commit, toast, deviceLabel: platform
   };
 
   const claimInvite = (token) => {
-    const invite = (data.invites ?? []).find((item) => item.token === token && !item.claimedAt && !item.revokedAt && new Date(item.expiresAt) > new Date());
+    const invite = (data.invites ?? []).find((item) => item.token === token && usableInvite(data, item));
     const event = invite && data.events.find((item) => item.id === invite.eventId && !item.deletedAt);
     if (!invite || !event) return null;
-    const id = nextId([...data.members, ...data.hosts]);
-    const platform = platformLabel || "Device";
-    const deviceLabel = `${String(platform).slice(0, 32)} · ${String(id).padStart(3, "0")}`;
-    const account = { id, eventId: invite.eventId, name: `${invite.role} · ${deviceLabel}`, role: invite.role, email: `device-${id}@entryflow.local`, active: true, createdBy: invite.createdBy, deviceBound: true };
+    if (invite.claimedAccountId != null) {
+      const account = allAccounts.find(item => item.id === invite.claimedAccountId);
+      commit(data, "link-sign-in", event.id, account.name, {}, account);
+      return account;
+    }
+    const id = nextId(allAccounts);
+    const account = { id, eventId: invite.eventId, name: `${invite.role} ${id}`, role: invite.role, email: `device-${id}@entryflow.local`, active: true, createdBy: invite.createdBy, deviceBound: true };
     const inviteUpdate = { ...invite, claimedAt: new Date().toISOString(), claimedAccountId: id };
     const invites = data.invites.map((item) => item.id === invite.id ? inviteUpdate : item);
     const members = invite.role === ROLES.HOST ? data.members : [...data.members, account];
@@ -225,7 +239,7 @@ export function eventCommands({ data, user, commit, toast, deviceLabel: platform
     const amount = Number(count);
     const remaining = Number(pass.totalCount) - Number(pass.enteredCount);
     if (!Number.isInteger(amount) || amount < 1 || amount > remaining) return { ok: false, message: `Only ${Math.max(remaining, 0)} entries remain on this pass` };
-    const entry = { id: nextId(data.entries), passId: pass.id, eventId: pass.eventId, hostId: pass.hostId, primaryName: pass.primaryName, code: pass.code, count: amount, action, gate, actorId: user?.id ?? null, actorName: user?.name ?? "System", scannedAt: new Date().toISOString(), reversedAt: null };
+    const entry = { id: nextId(data.entries), passId: pass.id, eventId: pass.eventId, hostId: pass.hostId, primaryName: pass.primaryName, code: pass.code, count: amount, action, gate, scanSession, actorId: user?.id ?? null, actorName: user?.name ?? "System", scannedAt: new Date().toISOString(), reversedAt: null };
     const guests = data.guests.map((item) => item.id === pass.id ? { ...item, enteredCount: Number(item.enteredCount) + amount, insideCount: Number(item.insideCount) + amount, lockedAt: item.lockedAt ?? new Date().toISOString() } : item);
     commit({ ...data, guests, entries: [...data.entries, entry] }, action === "check-in" ? "pass-checked-in" : action, pass.eventId, pass.primaryName, { code: pass.code, count: amount, gate });
     return { ok: true, pass, entry, remaining: remaining - amount };
@@ -282,7 +296,7 @@ export function eventCommands({ data, user, commit, toast, deviceLabel: platform
   };
 
   const undoLastScan = (eventId) => {
-    const entry = [...data.entries].reverse().find((item) => (!eventId || item.eventId === Number(eventId)) && item.actorId === user?.id && item.action === "check-in" && !item.reversedAt);
+    const entry = [...data.entries].reverse().find((item) => (!eventId || item.eventId === Number(eventId)) && item.actorId === user?.id && (!item.scanSession || item.scanSession === scanSession) && item.action === "check-in" && !item.reversedAt);
     if (!entry) return false;
     return reverseEntry(entry.id, "Scanner undo");
   };

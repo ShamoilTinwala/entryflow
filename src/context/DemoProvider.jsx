@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { seedEntries, seedEvents, seedGuests, seedHosts } from "../data/mockData";
 import { AppContext } from "./store";
-import { eventCommands, nextId } from "../lib/commands";
+import { eventCommands, nextId, usableInvite } from "../lib/commands";
 import { ROLES } from "../lib/roles";
 
 const STORAGE_KEY = "entryflow-state";
@@ -94,7 +94,7 @@ export function DemoProvider({ children }) {
     setUser(null);
   };
 
-  const commands = eventCommands({ data, user, commit, toast, deviceLabel: navigator.platform });
+  const commands = eventCommands({ data, user, commit, toast });
   const claimInvite = (token) => {
     const account = commands.claimInvite(token);
     if (account) { localStorage.setItem(USER_KEY, JSON.stringify(account)); setUser(account); }
@@ -123,7 +123,7 @@ export function DemoProvider({ children }) {
   const value = {
     user, event: eventForUser, events: visibleEvents, allEvents: data.events, hosts: data.hosts,
     members: data.members, guests: assignedPasses, allGuests: data.guests, entries: data.entries,
-    audit: data.audit, invites: data.invites ?? [], stats, login, logout, ...commands, claimInvite, resetDemoData,
+    audit: data.audit, invites: data.invites.map(invite => ({ ...invite, available: usableInvite(data, invite) })), stats, login, logout, ...commands, claimInvite, resetDemoData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

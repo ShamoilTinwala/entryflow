@@ -51,7 +51,7 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
         {needsQuota && <label className="block text-sm font-medium">Guest allocation
           <input required type="number" min="1" step="1" className="mt-2 w-full rounded-xl border px-4 py-3" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
         </label>}
-        <p className="text-xs text-gray-500">{hosted ? "Use a confirmed email account from Supabase Authentication, or create a one-time invite for passwordless access." : "Demo accounts are stored in this browser."}</p>
+        <p className="text-xs text-gray-500">{hosted ? "Use a confirmed email account from Supabase Authentication, or create a reusable sign-in link for passwordless access." : "Demo accounts are stored in this browser."}</p>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={() => { setForm(initialForm()); onClose(); }} className="flex-1 rounded-xl border py-3">Cancel</button>
           <button type="submit" className="flex-1 rounded-xl bg-blue-600 py-3 font-semibold text-white">Create account</button>
