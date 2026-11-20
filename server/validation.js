@@ -20,7 +20,7 @@ export const commands = {
   createMember: z.tuple([z.object({eventId: id, role, email, name, capacity: quantity})]),
   updateMember: z.tuple([id, z.object({email, name, eventId: id}).partial().strict()]),
   removeMember: z.tuple([id]), updateHostQuota: z.tuple([id, quantity]),
-  createInvite: z.tuple([z.object({eventId: id, role, capacity: quantity, expiresInHours: z.literal(48).optional()})]),
+  createInvite: z.tuple([z.object({eventId: id, role, hostId: id.optional(), capacity: quantity.optional(), expiresInHours: z.literal(48).optional()})]),
   revokeInvite: z.tuple([z.string().length(20)]),
   createGuest: z.tuple([z.object({eventId: id, hostId: id, name, count: quantity})]),
   updateGuest: z.tuple([id, z.object({primaryName: name, totalCount: quantity}).strict()]),

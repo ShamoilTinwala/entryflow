@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp } from "../context/AppContext";
 import { ROLES } from "../lib/roles";
+import HostSignInLink from "./HostSignInLink";
 
 const rolesForCreator = {
   [ROLES.GLOBAL_ADMIN]: [ROLES.SUPERHOST, ROLES.HOST, ROLES.SUPERVISOR, ROLES.GATE_SCANNER],
@@ -13,14 +14,26 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
   const defaultEventId = eventId ?? user?.eventId ?? (selectableEvents.length === 1 ? selectableEvents[0].id : "");
   const initialForm = () => ({ eventId: String(defaultEventId), role: onlyRole ?? ROLES.HOST, name: "", email: "", capacity: "10" });
   const [form, setForm] = useState(initialForm);
+  const [createdHost, setCreatedHost] = useState(null);
 
   if (!isOpen) return null;
+  if (createdHost) return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+    <section role="dialog" aria-modal="true" aria-label="Host created" className="w-full max-w-md space-y-4 rounded-3xl bg-card p-6">
+      <h2 className="text-xl font-semibold">{createdHost.name}’s account is ready</h2>
+      <HostSignInLink host={createdHost} />
+      <button type="button" className="min-h-11 rounded-lg border px-4" onClick={() => { setCreatedHost(null); onClose(); }}>Done</button>
+    </section>
+  </div>;
   const roles = onlyRole ? [onlyRole] : rolesForCreator[user?.role] ?? [];
   const needsQuota = form.role === ROLES.HOST;
   const onSubmit = async (event) => {
     event.preventDefault();
     const member = await createMember({ ...form, eventId: Number(form.eventId), capacity: Number(form.capacity) });
-    if (member) { setForm(initialForm()); onClose(); }
+    if (member) {
+      setForm(initialForm());
+      if (member.role === ROLES.HOST) setCreatedHost(member);
+      else onClose();
+    }
   };
 
   return (
@@ -51,7 +64,7 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
         {needsQuota && <label className="block text-sm font-medium">Guest allocation
           <input required type="number" min="1" step="1" className="mt-2 w-full rounded-xl border px-4 py-3" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
         </label>}
-        <p className="text-xs text-muted-foreground">{hosted ? "Use a confirmed email account from Supabase Authentication, or create a reusable sign-in link for passwordless access." : "Demo accounts are stored in this browser."}</p>
+        <p className="text-xs text-muted-foreground">{hosted ? (needsQuota ? "After creating this Host, you can share their sign-in link." : "Email sign-in requires a confirmed Supabase account.") : "Demo accounts are stored in this browser."}</p>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={() => { setForm(initialForm()); onClose(); }} className="flex-1 rounded-xl border py-3">Cancel</button>
           <button type="submit" className="flex-1 rounded-xl bg-primary py-3 font-semibold text-primary-foreground">Create account</button>

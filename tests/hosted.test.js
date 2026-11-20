@@ -125,6 +125,34 @@ test("four independent gate sessions share admissions and isolate roles", async 
   assert.equal(fromPhone.user.id,fromLaptop.user.id);
   assert.equal((await superhost("read")).snapshot.invites.some(i=>i.token===managerLink),false);
   assert.equal((await superhost("revokeInvite",[managed.result.id])).status,200);
+  const namedHost = (await superhost("createMember", [{eventId, role:"Host", name:"Asha", email:"asha@test.example", capacity:8}])).result;
+  const options = [{eventId, role:"Host", hostId:namedHost.id}];
+  const [firstShare, repeatShare] = await Promise.all([superhost("createInvite", options), admin("createInvite", options)]);
+  assert.equal(firstShare.status, 200);
+  assert.equal(firstShare.result.token, repeatShare.result.token);
+  const passwordSession = browser(), phone = browser(), laptop = browser();
+  assert.equal((await passwordSession("login", [{email:namedHost.email, password:"correct-pass"}])).user.id, namedHost.id);
+  const oldPass = (await passwordSession("createGuest", [{eventId,hostId:namedHost.id,name:"Existing guest",count:2}])).result;
+  for (const device of [phone, laptop]) {
+    const opened = await device("claimInvite", [firstShare.result.token]);
+    assert.equal(opened.user.id, namedHost.id);
+    assert.equal(opened.snapshot.hosts[0].capacity, 8);
+    assert.equal(opened.snapshot.guests[0].id, oldPass.id);
+  }
+  assert.equal((await phone("createInvite", options)).status, 403);
+  assert.equal((await superhost("createInvite", [{...options[0],eventId:second.id}])).status,409);
+  assert.equal((await superhost("createInvite", [{...options[0],role:"Supervisor"}])).status,409);
+  assert.equal((await superhost("revokeInvite", [firstShare.result.id])).status,200);
+  assert.equal((await phone("read")).user,null);
+  assert.equal((await laptop("claimInvite", [firstShare.result.token])).status,409);
+  assert.equal((await passwordSession("read")).user.id, namedHost.id);
+  const replacement = (await admin("createInvite", options)).result;
+  assert.notEqual(replacement.token, firstShare.result.token);
+  assert.equal((await phone("claimInvite", [replacement.token])).user.id,namedHost.id);
+  assert.equal((await laptop("read")).user,null);
+  await superhost("removeMember", [namedHost.id]);
+  assert.equal((await phone("claimInvite", [replacement.token])).status,409);
+  assert.equal((await admin("createInvite", options)).status,409);
   const previousLink = await invite("Gate Scanner");
   const existingGate = browser();
   const previousRequest = randomUUID();

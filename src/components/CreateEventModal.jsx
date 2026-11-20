@@ -84,6 +84,7 @@ function CreateEventModal({ isOpen, onClose }) {
               <p className="text-sm text-destructive mt-1">{errors.date.message}</p>
             )}
           </div>
+          <details><summary className="cursor-pointer py-2 font-medium">Optional event details</summary><div className="mt-2 space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium">Start time<input type="time" {...register("startTime")} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
             <label className="block text-sm font-medium">End time<input type="time" {...register("endTime")} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
@@ -92,6 +93,7 @@ function CreateEventModal({ isOpen, onClose }) {
           <label className="block text-sm font-medium">Map link<input type="url" {...register("mapUrl")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="https://maps.google.com/..." /></label>
           <label className="block text-sm font-medium">Event information<textarea rows="2" {...register("description")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="Arrival instructions and event details" /></label>
           <label className="block text-sm font-medium">Default guest invitation message<textarea rows="3" {...register("invitationMessage")} className="mt-2 w-full rounded-xl border px-4 py-3" placeholder="A short welcome message for every guest" /></label>
+          </div></details>
         </div>
 
         <div className="flex gap-3 mt-8">

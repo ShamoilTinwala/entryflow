@@ -1,3 +1,5 @@
+import HostSignInLink from "../components/HostSignInLink";
+import ShortList from "../components/ShortList";
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
@@ -126,9 +128,10 @@ function HostPasses({ hostId: selectedHostId }) {
       <h3 className="text-xl font-semibold">Guest passes ({passes.length})</h3>
       {passes.length > 0 && <input type="search" aria-label="Search guest passes" placeholder="Search by guest name or pass code" value={search} onChange={e => setSearch(e.target.value)} className={field} />}
       {visible.length === 0 && <p className="text-sm text-muted-foreground">{passes.length ? "No matching passes." : "Your first pass will appear here, ready to share."}</p>}
-      {visible.map(pass => <PassCard key={pass.id} pass={pass} event={assignedEvent} remaining={remaining} canManage={canManage}
-        entries={entries.filter(entry => entry.passId === pass.id && !entry.reversedAt)} updateGuest={updateGuest} deleteGuest={deleteGuest} />)}
+      <ShortList key={hostId} items={visible} label="passes" limit={5}>{pass => <PassCard key={pass.id} pass={pass} event={assignedEvent} remaining={remaining} canManage={canManage}
+        entries={entries.filter(entry => entry.passId === pass.id && !entry.reversedAt)} updateGuest={updateGuest} deleteGuest={deleteGuest} />}</ShortList>
     </section>
+    {selectedHostId && <HostSignInLink host={host} />}
     <AccountInvites event={assignedEvent} />
   </div>;
 }

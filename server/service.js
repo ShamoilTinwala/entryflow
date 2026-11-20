@@ -12,8 +12,8 @@ function sessionUser(data, token) {
   const hash = token && digest(token);
   const session = hash && data.sessions.find(s => s.hash === hash && s.until > Date.now());
   const person = session && [...data.members,...data.hosts].find(p => p.id === session.account && p.active);
-  if (person?.deviceBound) {
-    const invite = data.invites.find(i => i.claimedAccountId === person.id);
+  if (person && (session.inviteId || person.deviceBound)) {
+    const invite = data.invites.find(i => i.claimedAccountId === person.id && (!session.inviteId || i.id === session.inviteId));
     if (!validInviteAccount(data, invite)) return null;
   }
   if (!person || (person.eventId && !data.events.some(e => e.id === person.eventId && !e.deletedAt))) return null;
@@ -101,7 +101,9 @@ export function operation(original, request) {
     }
     cookie = newToken;
     const sessions = data.sessions.filter(s=>s.until>Date.now() && (!token || s.hash !== digest(token)));
-    data = {...data,sessions:[...sessions,{account:user.id,hash:digest(cookie),until:Date.now()+30*86400000}]};
+    const session = {account:user.id,hash:digest(cookie),until:Date.now()+30*86400000};
+    if (action === "claimInvite") session.inviteId = data.invites.find(i => i.token === args[0]).id;
+    data = {...data,sessions:[...sessions,session]};
     result = user;
     return finish();
   }

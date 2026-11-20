@@ -1,3 +1,5 @@
+import HostSignInLink from "../components/HostSignInLink";
+import ShortList from "../components/ShortList";
 import { peopleInside } from "../lib/occupancy";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -34,7 +36,7 @@ function EventDetail() {
   const startEdit = () => { setDraft({ name: event.name, venue: event.venue, date: event.date, startTime: event.startTime ?? "", endTime: event.endTime ?? "", address: event.address ?? event.venue, mapUrl: event.mapUrl ?? "", description: event.description ?? "", invitationMessage: event.invitationMessage ?? "" }); setEditing(true); };
   const saveEdit = async (e) => { e.preventDefault(); if (await updateEvent(eventId, draft)) setEditing(false); };
   const statusesForRole = isAdmin ? statuses : statuses.filter((status) => status !== "Archived");
-  const eventRoleMembers = [...eventMembers, ...eventHosts.filter((host) => host.active !== false)];
+  const eventRoleMembers = [...eventMembers, ...eventHosts.filter((host) => host.active !== false)].sort((a,b) => b.id - a.id);
 
   return (
     <div className="space-y-6">
@@ -54,7 +56,7 @@ function EventDetail() {
           <div><h2 className="text-2xl font-bold">{event.name}</h2><p className="mt-1 text-muted-foreground">{event.venue} · {event.date}{event.startTime ? ` · ${event.startTime}${event.endTime ? `–${event.endTime}` : ""}` : ""}</p><p className="mt-1 text-sm text-muted-foreground">{event.address}</p>{event.mapUrl && <a className="mt-2 inline-block text-sm text-primary underline" href={event.mapUrl} target="_blank" rel="noreferrer">Open event map</a>}{event.description && <p className="mt-3 max-w-3xl whitespace-pre-wrap text-foreground">{event.description}</p>}<p className="mt-3 inline-flex rounded-full bg-background px-3 py-1 text-sm">{event.status}</p></div>
           <div className="flex flex-wrap gap-2">{!isDeleted && (isAdmin || isSuperhost) && <><button onClick={startEdit} className="min-h-11 rounded-xl border px-4 py-2">Edit event</button><button onClick={() => { const url = publicUrl(`/event-invitation/${event.invitationToken ?? event.id}`); copyText(`${eventInvitation(event)}\n${url}`).then(() => toast.success("Event invitation copied")).catch(() => toast.error("Could not copy invitation")); }} className="min-h-11 rounded-xl border px-4 py-2">Copy guest invitation</button><button onClick={() => shareWhatsApp(eventInvitation(event), publicUrl(`/event-invitation/${event.invitationToken ?? event.id}`))} className="min-h-11 rounded-xl border px-4 py-2">WhatsApp</button></>}{!isDeleted && isAdmin && <button onClick={() => { if (window.confirm("Archive this event? Its history will be preserved.")) archiveEvent(eventId); }} className="min-h-11 rounded-xl border px-4 py-2">Archive</button>}{!isDeleted && isAdmin && <button onClick={async () => { if (window.confirm("Remove this event from active events? Its records and activity history will be preserved.")) { if (await deleteEvent(eventId)) navigate("/events"); } }} className="min-h-11 rounded-xl border border-destructive/40 px-4 py-2 text-destructive">Delete</button>}</div>
         </div>}
-        {isDeleted ? <p className="mt-5 rounded-xl bg-warning-surface p-3 text-sm text-warning">This event is deleted from active records and shown here for history.</p> : <div className="mt-5 flex flex-wrap gap-2">{statusesForRole.map((status) => <button key={status} onClick={() => updateEvent(eventId, { status })} className={`rounded-xl px-4 py-2 text-sm ${event.status === status ? "bg-primary text-primary-foreground" : "border hover:bg-secondary"}`}>Set {status}</button>)}</div>}
+        {isDeleted ? <p className="mt-5 rounded-xl bg-warning-surface p-3 text-sm text-warning">This event is deleted from active records and shown here for history.</p> : <label className="mt-4 flex flex-wrap items-center gap-2 text-sm font-medium">Event status<select className="min-h-11 rounded-lg border px-3" value={event.status} onChange={e => updateEvent(eventId, { status: e.target.value })}>{[...new Set([...statusesForRole, event.status])].map(status => <option key={status}>{status}</option>)}</select></label>}
       </section>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -63,22 +65,23 @@ function EventDetail() {
 
       {!isDeleted && (isAdmin || isSuperhost) && <section className="rounded-2xl bg-card p-6 shadow">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 className="text-lg font-semibold">Event team</h3><p className="text-sm text-muted-foreground">Create and manage accounts assigned to this event.</p></div><button onClick={() => setShowAccountModal(true)} className="rounded-xl bg-primary px-4 py-2 text-primary-foreground">+ Create account</button></div>
-        {eventRoleMembers.length === 0 ? <p className="text-muted-foreground">No team accounts assigned.</p> : <div className="space-y-3">{eventRoleMembers.map((person) => {
+        {eventRoleMembers.length === 0 ? <p className="text-muted-foreground">No team accounts assigned.</p> : <ShortList key={eventId} items={eventRoleMembers} label="team members">{person => {
           const isHost = person.role === ROLES.HOST;
           const isMember = eventMembers.some((member) => member.id === person.id);
           return <div key={`${person.role}-${person.id}`} className="rounded-xl border p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="font-medium">{isHost ? <Link className="text-primary hover:underline" to={`/hosts/${person.id}`}>{person.name}</Link> : person.name}</p><p className="text-sm text-muted-foreground">{person.role} · {person.email}</p>{isHost && <p className="mt-1 text-sm text-primary">Allocation: {person.capacity} guests</p>}</div>
-              <div className="flex flex-wrap items-center gap-2">
+              <details className="w-full sm:w-auto"><summary className="cursor-pointer py-2 text-sm font-semibold text-primary">Account options</summary><div className="mt-2 flex flex-wrap items-start gap-2">
+                {isHost && <HostSignInLink host={person} />}
                 {isHost && <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); updateHostQuota(person.id, e.currentTarget.elements.quota.value); }}><input name="quota" type="number" min="1" defaultValue={person.capacity} className="w-24 rounded-lg border px-2 py-2" aria-label={`Quota for ${person.name}`} /><button className="rounded-lg border px-3 py-2 text-sm">Update quota</button></form>}
                 <button onClick={() => { setEditingPerson(person.id); setPersonDraft({ name: person.name, email: person.email }); }} className="rounded-lg border px-3 py-2 text-sm">Edit account</button>
                 {isAdmin && person.role === ROLES.SUPERHOST && <select aria-label={`Reassign ${person.name}`} defaultValue={eventId} onChange={(e) => { if (Number(e.target.value) !== eventId) updateMember(person.id, { eventId: Number(e.target.value) }); }} className="rounded-lg border bg-card px-3 py-2 text-sm"><option value={eventId}>Reassign to…</option>{events.filter((item) => item.id !== eventId && !item.deletedAt).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
                 {(isMember || isHost) && <button onClick={() => { if (window.confirm(`Remove ${person.name}'s event access? Activity history will remain.`)) removeMember(person.id); }} className="rounded-lg border border-destructive/40 px-3 py-2 text-sm text-destructive">Remove access</button>}
-              </div>
+              </div></details>
             </div>
             {editingPerson === person.id && <form className="mt-4 grid gap-3 md:grid-cols-3" onSubmit={async (e) => { e.preventDefault(); if (await updateMember(person.id, personDraft)) setEditingPerson(null); }}><label className="text-sm font-medium">Name<input required minLength="2" className="mt-1 w-full rounded-lg border px-3 py-2" value={personDraft.name} onChange={(e) => setPersonDraft({ ...personDraft, name: e.target.value })} /></label><label className="text-sm font-medium">Login email<input required type="email" className="mt-1 w-full rounded-lg border px-3 py-2" value={personDraft.email} onChange={(e) => setPersonDraft({ ...personDraft, email: e.target.value })} /></label><div className="flex items-end gap-2"><button className="rounded-lg bg-primary px-4 py-2 text-primary-foreground">Save</button><button type="button" onClick={() => setEditingPerson(null)} className="rounded-lg border px-4 py-2">Cancel</button></div></form>}
           </div>;
-        })}</div>}
+        }}</ShortList>}
       </section>}
 
       {!isDeleted && <AccountInvites event={event} />}

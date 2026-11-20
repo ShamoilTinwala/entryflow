@@ -84,13 +84,23 @@ export function eventCommands({ data, user, commit, toast, scanSession }) {
     return member;
   };
 
-  const createInvite = ({ eventId, role, capacity = 10 }) => {
+  const createInvite = ({ eventId, role, capacity = 10, hostId }) => {
     const event = data.events.find((item) => item.id === Number(eventId) && !item.deletedAt);
     const allowedRoles = inviteRoles(user, eventId);
     if (!event || !allowedRoles.includes(role)) return null;
+    if (hostId != null) {
+      const host = data.hosts.find(item => item.id === hostId && item.eventId === event.id && item.active !== false && item.role === ROLES.HOST);
+      if (role !== ROLES.HOST || !host) return null;
+      const existing = data.invites.find(item => item.claimedAccountId === hostId && usableInvite(data, item));
+      if (existing) return existing;
+    }
     const token = globalThis.crypto?.randomUUID?.().replaceAll("-", "") ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
     const invite = { id: crypto.randomUUID().replaceAll("-", "").slice(0, 20), token, eventId: event.id, role, capacity: role === ROLES.HOST ? Math.max(1, Number(capacity) || 10) : null, createdBy: user.id, createdAt: new Date().toISOString(), expiresAt: null, claimedAt: null, revokedAt: null };
-    commit({ ...data, invites: [...(data.invites ?? []), invite] }, "account-invite-created", event.id, role, { expiresAt: invite.expiresAt });
+    if (hostId != null) {
+      invite.claimedAccountId = hostId;
+      invite.capacity = null;
+    }
+    commit({ ...data, invites: [...(data.invites ?? []), invite] }, "account-invite-created", event.id, role, hostId != null ? { hostId } : { expiresAt: invite.expiresAt });
     return invite;
   };
 

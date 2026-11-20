@@ -1,3 +1,4 @@
+import ShortList from "../components/ShortList";
 import { peopleInside } from "../lib/occupancy";
 import { useApp } from "../context/AppContext";
 import { ROLES } from "../lib/roles";
@@ -17,6 +18,6 @@ function LiveStats() {
     const inside = peopleInside(eventPasses, eventEntries);
     return <section key={event.id} className="rounded-2xl bg-card p-6 shadow"><div className="flex justify-between"><div><h3 className="text-xl font-bold">{event.name}</h3><p className="text-sm text-muted-foreground">{event.venue} · {event.date}</p></div><span className={event.status === "Live" ? "text-positive" : "text-muted-foreground"}>{event.status}</span></div><div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-5">{[{ label: "Guest allocation", value: capacity }, { label: "Pass spots", value: totalIssued }, { label: "Admitted", value: admitted }, { label: "Inside", value: inside }, { label: "Hosts", value: eventHosts.length }].map((stat) => <div key={stat.label}><p className="text-sm text-muted-foreground">{stat.label}</p><p className="text-2xl font-bold">{stat.value}</p></div>)}</div></section>;
   })}
-  <section className="rounded-2xl bg-card p-6 shadow"><h3 className="mb-4 text-lg font-semibold">Live entry activity</h3>{visibleEntries.length === 0 ? <p className="text-muted-foreground">No entries yet.</p> : <div className="space-y-3">{visibleEntries.map((entry) => <div key={entry.id} className="flex flex-wrap justify-between gap-2 border-b pb-3 text-sm"><span>{entry.primaryName || "Unlisted guest"} · {entry.action} · {entry.count} · {entry.gate}{entry.reversedAt ? " · reversed" : ""}</span><span className="text-muted-foreground">{new Date(entry.scannedAt).toLocaleString()} · {entry.actorName}</span></div>)}</div>}</section></div>;
+  <section className="rounded-2xl bg-card p-6 shadow"><h3 className="mb-4 text-lg font-semibold">Live entry activity</h3>{visibleEntries.length === 0 ? <p className="text-muted-foreground">No entries yet.</p> : <ShortList items={visibleEntries} label="entries" limit={5}>{entry => <div key={entry.id} className="flex flex-wrap justify-between gap-2 border-b pb-3 text-sm"><span>{entry.primaryName || "Unlisted guest"} · {entry.action} · {entry.count} · {entry.gate}{entry.reversedAt ? " · reversed" : ""}</span><span className="text-muted-foreground">{new Date(entry.scannedAt).toLocaleString()} · {entry.actorName}</span></div>}</ShortList>}</section></div>;
 }
 export default LiveStats;
