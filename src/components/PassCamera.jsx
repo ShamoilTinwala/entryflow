@@ -64,12 +64,12 @@ export default function PassCamera({ onCode, disabled }) {
     };
   }, [active, disabled]);
 
-  return <>
-    <div className="mb-4 overflow-hidden rounded-xl bg-gray-950">
-      <video hidden={!active} ref={videoRef} className="max-h-72 w-full object-contain" muted playsInline />
-      {!active && <div className="flex h-32 items-center justify-center text-sm text-gray-400">Camera scanner</div>}
-    </div>
-    <button type="button" disabled={disabled} onClick={() => { setError(""); setActive(!active); }} className="mb-4 rounded-xl bg-slate-900 px-4 py-3 text-white disabled:opacity-50">{active ? "Stop camera" : "Start camera"}</button>
-    {error && <p role="alert" className="mb-4 text-sm text-amber-700">{error}</p>}
-  </>;
+  return <div className="space-y-2">
+    <video hidden={!active} ref={videoRef} className="max-h-[32dvh] w-full rounded-xl bg-gray-950 object-contain" muted playsInline />
+    <button type="button" disabled={disabled} onClick={() => { setError(""); setActive(!active); }}
+      className="min-h-12 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
+      {active ? "Stop camera" : "Scan QR with camera"}
+    </button>
+    {error && <p role="alert" className="text-sm text-amber-700">{error}</p>}
+  </div>;
 }

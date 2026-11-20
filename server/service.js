@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { eventCommands, nextId, usableInvite } from "../src/lib/commands.js";
+import { eventCommands, nextId, usableInvite, validInviteAccount } from "../src/lib/commands.js";
 import { commands } from "./validation.js";
 
 export const secret = () => randomBytes(32).toString("hex");
@@ -14,7 +14,7 @@ function sessionUser(data, token) {
   const person = session && [...data.members,...data.hosts].find(p => p.id === session.account && p.active);
   if (person?.deviceBound) {
     const invite = data.invites.find(i => i.claimedAccountId === person.id);
-    if (!usableInvite(data, invite)) return null;
+    if (!validInviteAccount(data, invite)) return null;
   }
   if (!person || (person.eventId && !data.events.some(e => e.id === person.eventId && !e.deletedAt))) return null;
   return person;
@@ -52,7 +52,7 @@ function snapshot(data, user, path) {
   result.members = scoped("members").filter(m => manager || m.id === user.id);
   result.guests = scoped("guests").filter(p=> !host || p.hostId === user.id);
   result.entries = scoped("entries").filter(e=> manager || supervisor || (host ? e.hostId === user.id : e.actorId === user.id));
-  result.invites = scoped("invites").filter(i=> (manager && i.role !== "Superhost") || (host && i.createdBy === user.id)).map(withStatus);
+  result.invites = manager ? scoped("invites").filter(i => i.role !== "Superhost").map(withStatus) : [];
   result.audit = manager || supervisor ? scoped("audit") : [];
   return result;
 }
@@ -77,7 +77,9 @@ export function operation(original, request) {
   }});
   if (action === "claimInvite") {
     const claimed = sessionUser(data,newToken);
-    if (claimed) { user = claimed; cookie = newToken; result = user; return finish(); }
+    if (claimed && usableInvite(data, data.invites.find(invite => invite.token === args[0]))) {
+      user = claimed; cookie = newToken; result = user; return finish();
+    }
   }
   if (action === "login" || action === "claimInvite") {
     if (action === "login") {
@@ -105,6 +107,9 @@ export function operation(original, request) {
   }
   if (!user) throw new RequestError("Sign in to continue.",401);
   if (!Object.hasOwn(commands,action)) throw new RequestError("Unknown operation.");
+  if (["createInvite", "revokeInvite"].includes(action) && !["Global Admin", "Superhost"].includes(user.role)) {
+    throw new RequestError("Only event managers can manage team invites.", 403);
+  }
   const parsed = commands[action].safeParse(args);
   if (!parsed.success) throw new RequestError("Check the fields and try again.");
   const prior = data.receipts.find(r=>r.userId===user.id && r.id===requestId && r.action===action);

@@ -1,57 +1,134 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { toast } from "sonner";
 import { useApp } from "../context/AppContext";
 import { ROLES } from "../lib/roles";
 import AccountInvites from "../components/AccountInvites";
-import { downloadQr, eventInvitation, publicUrl, sharePass, shareWhatsApp } from "../lib/sharing";
-import { toast } from "sonner";
+import { copyText, downloadQr, eventInvitation, publicUrl, sharePass, shareWhatsApp } from "../lib/sharing";
+
+const field = "mt-1 block min-h-11 w-full min-w-0 rounded-lg border bg-white px-3 text-base";
+const button = "min-h-11 rounded-lg border px-3 py-2 text-sm font-medium";
+const primary = "min-h-11 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-50";
+
+function PassCard({ pass, event, entries, remaining, canManage, updateGuest, deleteGuest }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ primaryName: "", totalCount: 1 });
+  const svg = useRef(null);
+  const locked = Boolean(pass.lockedAt || pass.enteredCount > 0);
+  const link = () => publicUrl(`/pass/${encodeURIComponent(pass.code)}`);
+  const description = `${pass.totalCount} ${Number(pass.totalCount) === 1 ? "guest" : "guests"}`;
+
+  async function share() {
+    try {
+      const result = await sharePass({ event, pass, svgElement: svg.current });
+      if (result !== "shared") toast.success(result === "copied-with-image" ? "Pass link and QR copied" : "Pass link and message copied");
+    } catch (error) {
+      if (error.name !== "AbortError") toast.error("Sharing is unavailable. Try Copy link.");
+    }
+  }
+
+  async function save(e) {
+    e.preventDefault();
+    if (await updateGuest(pass.id, { primaryName: draft.primaryName.trim(), totalCount: Number(draft.totalCount) })) setEditing(false);
+  }
+
+  return <article id={`guest-pass-${pass.id}`} className="min-w-0 scroll-mt-4 rounded-xl border bg-white p-3 sm:p-4">
+    <h4 className="break-words text-lg font-semibold">{pass.primaryName}</h4>
+    <p className="text-sm text-slate-600">{description} · {pass.totalCount - pass.enteredCount} remaining</p>
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <button type="button" onClick={share} className={primary}>Share pass</button>
+      <button type="button" className={button} onClick={() => shareWhatsApp(`${eventInvitation(event)}\n\nGuest pass for ${pass.primaryName} · ${description}`, link())}>WhatsApp</button>
+      <button type="button" className={button + " col-span-2 sm:col-span-1"} onClick={() => copyText(link()).then(() => toast.success("Pass link copied")).catch(() => toast.error("Could not copy link"))}>Copy link</button>
+    </div>
+    <details className="mt-1">
+      <summary className="cursor-pointer py-3 text-sm font-medium text-slate-600">QR and pass details</summary>
+      <div className="space-y-3 border-t pt-3">
+        <QRCodeSVG ref={svg} value={pass.code} size={152} marginSize={4} level="M" />
+        <p className="break-all font-mono text-xs text-slate-600">{pass.code}</p>
+        <p className="text-sm text-slate-600">{pass.insideCount} inside · {Math.max(pass.enteredCount - pass.insideCount, 0)} checked out</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={button} onClick={() => downloadQr(svg.current, `entryflow-${pass.code}.png`).then(() => toast.success("QR image saved")).catch(() => toast.error("Could not save QR image"))}>Save QR image</button>
+          {canManage && !locked && !editing && <>
+            <button type="button" className={button} onClick={() => { setDraft({ primaryName: pass.primaryName, totalCount: pass.totalCount }); setEditing(true); }}>Edit pass</button>
+            <button type="button" className={button + " text-red-700"} onClick={() => { if (window.confirm(`Delete this unused pass and return ${pass.totalCount} spots?`)) deleteGuest(pass.id); }}>Delete</button>
+          </>}
+        </div>
+        {locked && <p className="text-sm text-slate-600">Pass locked after first check-in.</p>}
+        {editing && canManage && !locked && <form onSubmit={save} className="grid gap-3">
+          <label className="text-sm font-medium">Guest name<input required minLength={2} className={field} value={draft.primaryName} onChange={e => setDraft({ ...draft, primaryName: e.target.value })} /></label>
+          <label className="text-sm font-medium">Group size<input required type="number" min="1" max={Number(pass.totalCount) + remaining} className={field} value={draft.totalCount} onChange={e => setDraft({ ...draft, totalCount: e.target.value })} /></label>
+          <div className="flex gap-2"><button className={primary}>Save changes</button><button type="button" className={button} onClick={() => setEditing(false)}>Cancel</button></div>
+        </form>}
+        {entries.length > 0 && <details><summary className="cursor-pointer py-2 text-sm">Entry history ({entries.length})</summary>
+          {entries.map(entry => <p key={entry.id} className="py-1 text-sm text-slate-600">{entry.action} · {entry.count} · {entry.actorName} · {new Date(entry.scannedAt).toLocaleString()}</p>)}
+        </details>}
+      </div>
+    </details>
+  </article>;
+}
 
 function HostPasses({ hostId: selectedHostId }) {
   const { user, event, events, hosts, guests, entries, createGuest, updateGuest, deleteGuest } = useApp();
   const hostId = Number(selectedHostId ?? user?.id);
-  const host = hosts.find((item) => item.id === hostId);
-  const assignedEvent = host ? events.find((item) => item.id === host.eventId) : event;
-  const passes = guests.filter((pass) => pass.hostId === hostId && pass.eventId === assignedEvent?.id && !pass.deletedAt);
-  const [form, setForm] = useState({ primaryName: "", count: 1 });
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ primaryName: "", totalCount: 1 });
-  const used = useMemo(() => passes.reduce((sum, pass) => sum + Number(pass.totalCount || 1), 0), [passes]);
+  const host = hosts.find(item => item.id === hostId);
+  const assignedEvent = host ? events.find(item => item.id === host.eventId) : event;
+  const passes = guests.filter(pass => pass.hostId === hostId && pass.eventId === assignedEvent?.id && !pass.deletedAt).reverse();
+  const [name, setName] = useState("");
+  const [count, setCount] = useState(1);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createdId, setCreatedId] = useState(null);
+  const used = passes.reduce((sum, pass) => sum + Number(pass.totalCount || 1), 0);
   const remaining = Math.max(Number(host?.capacity ?? 0) - used, 0);
   const canManage = [ROLES.GLOBAL_ADMIN, ROLES.SUPERHOST, ROLES.HOST].includes(user?.role);
-  const canInviteScanner = [ROLES.HOST, ROLES.SUPERHOST, ROLES.GLOBAL_ADMIN].includes(user?.role);
+  const term = search.trim().toLowerCase();
+  const visible = passes.filter(pass => !term || [pass.primaryName, pass.code].some(value => value?.toLowerCase().includes(term)));
+
+  useEffect(() => {
+    if (createdId != null) document.getElementById(`guest-pass-${createdId}`)?.scrollIntoView({ block: "nearest" });
+  }, [createdId]);
 
   if (!host || !assignedEvent) return <p className="rounded-2xl bg-white p-6 text-gray-600">Host account not found or inactive.</p>;
 
-  const createPass = async (e) => {
+  async function create(e) {
     e.preventDefault();
-    const pass = await createGuest({ eventId: assignedEvent.id, hostId: host.id, name: form.primaryName, count: form.count });
-    if (pass) setForm({ primaryName: "", count: 1 });
-  };
-  const savePass = async (e, passId) => {
-    e.preventDefault();
-    if (await updateGuest(passId, { primaryName: editForm.primaryName.trim(), totalCount: Number(editForm.totalCount) })) setEditingId(null);
-  };
-  const beginEdit = (pass) => { setEditingId(pass.id); setEditForm({ primaryName: pass.primaryName, totalCount: pass.totalCount }); };
-  const isLocked = (pass) => Boolean(pass.lockedAt || pass.enteredCount > 0);
-  const passEntries = (pass) => entries.filter((entry) => entry.passId === pass.id && !entry.reversedAt);
+    if (creating || remaining < 1) return;
+    setCreating(true);
+    try {
+      const pass = await createGuest({ eventId: assignedEvent.id, hostId, name, count: Number(count) });
+      if (pass) {
+        setName("");
+        setCount(1);
+        setSearch("");
+        setCreatedId(pass.id);
+      }
+    } finally {
+      setCreating(false);
+    }
+  }
 
-  return <div className="space-y-6">
-    <section className="rounded-2xl bg-white p-6 shadow"><p className="text-sm text-gray-500">{assignedEvent.name}</p><h2 className="mt-1 text-2xl font-bold">{host.name}</h2><p className="mt-1 text-gray-500">{host.email}</p><div className="mt-5 grid grid-cols-3 gap-3"><div className="rounded-xl bg-gray-50 p-4"><p className="text-sm text-gray-500">Allocation</p><p className="text-2xl font-bold">{host.capacity}</p></div><div className="rounded-xl bg-gray-50 p-4"><p className="text-sm text-gray-500">Reserved</p><p className="text-2xl font-bold">{used}</p></div><div className="rounded-xl bg-blue-50 p-4"><p className="text-sm text-blue-700">Available</p><p className="text-2xl font-bold text-blue-700">{remaining}</p></div></div></section>
-
-    {canManage && <form onSubmit={createPass} className="order-first space-y-4 rounded-2xl bg-blue-50 p-5 shadow sm:p-6"><div><h3 className="text-xl font-semibold">Create a gate pass</h3><p className="text-sm text-gray-600">One QR for the group. Each person uses one allocation spot and can enter separately.</p></div><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium">Primary guest<input required minLength={2} className="mt-2 min-h-12 w-full rounded-xl border bg-white px-4 py-3" value={form.primaryName} onChange={(e) => setForm({ ...form, primaryName: e.target.value })} /></label><label className="text-sm font-medium">People on this pass (including primary)<input required type="number" min="1" max={remaining || 1} className="mt-2 min-h-12 w-full rounded-xl border bg-white px-4 py-3" value={form.count} onChange={(e) => setForm({ ...form, count: e.target.value })} /></label></div><p className="text-sm text-gray-600">{remaining} guest spots available.</p><button disabled={remaining === 0} className="min-h-12 w-full rounded-xl bg-blue-600 px-5 py-3 text-lg font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Create gate pass</button></form>}
-
-    {canInviteScanner && <AccountInvites event={assignedEvent} />}
-
-    <section className="rounded-2xl bg-white p-6 shadow"><div className="mb-4 flex items-center justify-between"><div><h3 className="text-lg font-semibold">Guest passes</h3><p className="text-sm text-gray-500">A pass locks after its first check-in.</p></div><span className="rounded-full bg-gray-100 px-3 py-1 text-sm">{passes.length} passes</span></div>{passes.length === 0 ? <p className="text-gray-500">No passes created yet.</p> : <div className="space-y-4">{passes.map((pass) => {
-      const locked = isLocked(pass);
-      const currentEntries = passEntries(pass);
-      const departed = Math.max(Number(pass.enteredCount) - Number(pass.insideCount), 0);
-      return <article key={pass.id} className="rounded-xl border p-4"><div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">{editingId === pass.id ? <form onSubmit={(e) => savePass(e, pass.id)} className="grid flex-1 gap-3 sm:grid-cols-2"><label className="text-sm font-medium">Primary guest<input required minLength={2} className="mt-1 min-h-11 w-full rounded-lg border px-3 py-2" value={editForm.primaryName} onChange={(e) => setEditForm({ ...editForm, primaryName: e.target.value })} /></label><label className="text-sm font-medium">Total pass count<input required type="number" min="1" className="mt-1 min-h-11 w-full rounded-lg border px-3 py-2" value={editForm.totalCount} onChange={(e) => setEditForm({ ...editForm, totalCount: e.target.value })} /></label><div className="flex gap-2"><button className="min-h-11 rounded-lg bg-blue-600 px-4 py-2 text-white">Save</button><button type="button" onClick={() => setEditingId(null)} className="min-h-11 rounded-lg border px-4 py-2">Cancel</button></div></form> : <div className="min-w-0 flex-1"><h4 className="font-semibold">{pass.primaryName}</h4><p className="mt-1 break-all font-mono text-sm text-gray-600">{pass.code}</p><p className="mt-2 text-sm text-gray-600">{pass.totalCount} people · {pass.totalCount - pass.enteredCount} remaining · {pass.insideCount} inside · {departed} out</p><p className={`mt-1 text-sm ${locked ? "text-amber-700" : "text-green-700"}`}>{locked ? "Locked after first check-in" : "Unused · editable"}</p></div>}
-      {editingId !== pass.id && <div className="self-center rounded-lg border bg-white p-2"><QRCodeSVG id={`pass-qr-${pass.id}`} value={pass.code} size={160} level="M" /><p className="text-center text-xs text-gray-500">Shared pass QR</p></div>}
-      {editingId !== pass.id && <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:min-w-40 sm:grid-cols-1">{<button onClick={async () => { try { const result = await sharePass({ event: assignedEvent, pass, svgElement: document.getElementById(`pass-qr-${pass.id}`) }); toast.success(result === "copied-with-image" ? "Message, link, and QR copied" : result === "copied" ? "Message and link copied. Save the QR image to attach it." : "Pass shared"); } catch { toast.error("Sharing was cancelled or unavailable"); } }} className="min-h-11 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white">Share pass</button>}<button onClick={() => shareWhatsApp(`${eventInvitation(assignedEvent)}\n\nGuest pass for ${pass.primaryName} · ${pass.totalCount} people`, publicUrl(`/pass/${encodeURIComponent(pass.code)}`))} className="min-h-11 rounded-lg border px-3 py-2 text-sm">WhatsApp</button><button onClick={() => downloadQr(document.getElementById(`pass-qr-${pass.id}`), `entryflow-${pass.code}.png`).then(() => toast.success("QR image saved")).catch(() => toast.error("Could not save QR image"))} className="min-h-11 rounded-lg border px-3 py-2 text-sm">Save QR image</button>{canManage && !locked && <><button onClick={() => beginEdit(pass)} className="min-h-11 rounded-lg border px-3 py-2 text-sm">Edit</button><button onClick={() => { if (window.confirm(`Delete unused pass and return ${pass.totalCount} spots to quota?`)) deleteGuest(pass.id); }} className="min-h-11 rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700">Delete</button></>}</div>}</div>
-      {currentEntries.length > 0 && <details className="mt-3"><summary className="cursor-pointer text-sm text-gray-600">Entry history ({currentEntries.length})</summary><div className="mt-2 space-y-2">{currentEntries.map((entry) => <p key={entry.id} className="text-xs text-gray-500">{entry.action} · {entry.count} · {entry.actorName} · {new Date(entry.scannedAt).toLocaleString()}</p>)}</div></details>}
-      </article>;
-    })}</div>}</section>
+  return <div className="mx-auto max-w-2xl space-y-4">
+    <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+      <div><p className="break-words text-sm text-slate-600">{assignedEvent.name} · {host.name}</p>
+        <h2 className="mt-1 text-xl font-semibold">Create a guest pass</h2>
+        <p className="mt-1 text-sm text-slate-600">{remaining} of {host.capacity} guest spots available</p>
+      </div>
+      {canManage && <form onSubmit={create} className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+          <label className="text-sm font-medium">Guest name<input required minLength={2} className={field} value={name} onChange={e => setName(e.target.value)} /></label>
+          <label className="text-sm font-medium">Group size<input required type="number" inputMode="numeric" min={1} max={remaining || 1} className={field} value={count} onChange={e => setCount(e.target.value)} /></label>
+        </div>
+        <button disabled={creating || !remaining} className={primary + " w-full"}>{creating ? "Creating…" : "Create pass"}</button>
+      </form>}
+    </section>
+    <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+      <h3 className="text-xl font-semibold">Guest passes ({passes.length})</h3>
+      {passes.length > 0 && <input type="search" aria-label="Search guest passes" placeholder="Search by guest name or pass code" value={search} onChange={e => setSearch(e.target.value)} className={field} />}
+      {visible.length === 0 && <p className="text-sm text-slate-600">{passes.length ? "No matching passes." : "Your first pass will appear here, ready to share."}</p>}
+      {visible.map(pass => <PassCard key={pass.id} pass={pass} event={assignedEvent} remaining={remaining} canManage={canManage}
+        entries={entries.filter(entry => entry.passId === pass.id && !entry.reversedAt)} updateGuest={updateGuest} deleteGuest={deleteGuest} />)}
+    </section>
+    <AccountInvites event={assignedEvent} />
   </div>;
 }
 

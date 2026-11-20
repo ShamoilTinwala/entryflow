@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { seedEntries, seedEvents, seedGuests, seedHosts } from "../data/mockData";
 import { AppContext } from "./store";
 import { eventCommands, nextId, usableInvite } from "../lib/commands";
-import { ROLES } from "../lib/roles";
+import { inviteRoles, ROLES } from "../lib/roles";
 
 const STORAGE_KEY = "entryflow-state";
 const USER_KEY = "entryflow-user";
@@ -110,6 +110,9 @@ export function DemoProvider({ children }) {
 
   const visibleEvents = data.events.filter((event) => !event.deletedAt);
   const assignedPasses = data.guests.filter((pass) => !pass.deletedAt);
+  const publicInvitePath = window.location.pathname;
+  const invites = data.invites.filter(invite =>
+    publicInvitePath === `/invite/${invite.token}` || inviteRoles(user, invite.eventId).includes(invite.role));
   const stats = useMemo(() => {
     const activeEvents = data.events.filter((event) => !event.deletedAt);
     const liveEvents = activeEvents.filter((event) => event.status === "Live").length;
@@ -123,7 +126,7 @@ export function DemoProvider({ children }) {
   const value = {
     user, event: eventForUser, events: visibleEvents, allEvents: data.events, hosts: data.hosts,
     members: data.members, guests: assignedPasses, allGuests: data.guests, entries: data.entries,
-    audit: data.audit, invites: data.invites.map(invite => ({ ...invite, available: usableInvite(data, invite) })), stats, login, logout, ...commands, claimInvite, resetDemoData,
+    audit: data.audit, invites: invites.map(invite => ({ ...invite, available: usableInvite(data, invite) })), stats, login, logout, ...commands, claimInvite, resetDemoData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

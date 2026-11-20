@@ -8,6 +8,13 @@ export const ROLES = {
 
 export const ROLE_OPTIONS = Object.values(ROLES);
 
+export function inviteRoles(user, eventId) {
+  const team = [ROLES.HOST, ROLES.SUPERVISOR, ROLES.GATE_SCANNER];
+  if (user?.role === ROLES.GLOBAL_ADMIN) return [ROLES.SUPERHOST, ...team];
+  if (user?.role === ROLES.SUPERHOST && Number(user.eventId) === Number(eventId)) return team;
+  return [];
+}
+
 const ROLE_ROUTES = {
   [ROLES.GLOBAL_ADMIN]: ["/admin", "/events", "/hosts", "/scanner", "/supervisor", "/live", "/settings"],
   [ROLES.SUPERHOST]: ["/my-event", "/events/", "/hosts", "/supervisor", "/live", "/scanner"],

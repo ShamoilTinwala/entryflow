@@ -54,6 +54,9 @@ test("four independent gate sessions share admissions and isolate roles", async 
   assert.equal(row.data.hosts.length,1);
   const activeHost = host;
   const hostId=(a.user||b.user).id;
+  for (const role of ["Host", "Supervisor", "Gate Scanner", "Superhost"]) {
+    assert.equal((await host("createInvite", [{eventId, role, capacity: 10}])).status, 403);
+  }
   const recovered=await browser()("claimInvite",[link],"/",claimKeys[a.status===200?0:1]);
   assert.equal(recovered.user.id,hostId);
   const staff=await admin("createMember",[{eventId,role:"Supervisor",email:"team@test.example",name:"Supervisor",capacity:10}]);
@@ -88,6 +91,13 @@ test("four independent gate sessions share admissions and isolate roles", async 
   assert.equal((await gates[(winner+1)%4]("undoLastScan")).status,409);
   assert.equal((await gates[winner]("undoLastScan")).status,200);
   const inviteId=row.data.invites.find(i=>i.token===scannerLink).id;
+  const groupPass = competing.find(response => response.status === 200).result;
+  const admitGroup = (gate, count) => gate("scanPass", [{eventId, code:groupPass.code, count, gate:"Main Gate"}]);
+  assert.equal((await admitGroup(gates[0], 3)).result.remaining, 6);
+  assert.equal((await admitGroup(gates[1], 7)).status, 409);
+  assert.equal((await admitGroup(gates[1], 6)).result.remaining, 0);
+  assert.equal((await gates[1]("undoLastScan", [eventId])).status, 200);
+  assert.equal((await gates[0]("undoLastScan", [eventId])).status, 200);
   const accountId=(await gates[0]("read")).user.id;
   await gates[0]("logout");
   assert.equal((await gates[0]("claimInvite",[scannerLink])).user.id,accountId);
@@ -115,6 +125,20 @@ test("four independent gate sessions share admissions and isolate roles", async 
   assert.equal(fromPhone.user.id,fromLaptop.user.id);
   assert.equal((await superhost("read")).snapshot.invites.some(i=>i.token===managerLink),false);
   assert.equal((await superhost("revokeInvite",[managed.result.id])).status,200);
+  const previousLink = await invite("Gate Scanner");
+  const existingGate = browser();
+  const previousRequest = randomUUID();
+  assert.equal((await existingGate("claimInvite", [previousLink], "/", previousRequest)).status, 200);
+  const previousInvite = row.data.invites.find(i => i.token === previousLink);
+  previousInvite.createdBy = hostId;
+  row.revision++;
+  assert.deepEqual((await host("read", [], "/my-passes")).snapshot.invites, []);
+  assert.equal((await host("revokeInvite", [previousInvite.id])).status, 403);
+  assert.equal((await browser()("claimInvite", [previousLink])).status, 409);
+  assert.equal((await browser()("claimInvite", [previousLink], "/", previousRequest)).status, 409);
+  assert.equal((await existingGate("read")).user.role, "Gate Scanner");
+  assert.equal((await superhost("revokeInvite", [previousInvite.id])).status, 200);
+  assert.equal((await existingGate("read")).user, null);
   await admin("removeMember",[hostId]);
   assert.equal((await activeHost("read")).user,null);
   assert.equal((await browser()("claimInvite",[link])).status,409);

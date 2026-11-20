@@ -1,4 +1,4 @@
-import { ROLES } from "./roles.js";
+import { inviteRoles, ROLES } from "./roles.js";
 
 export function nextId(items) {
   return items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
@@ -10,6 +10,10 @@ function makeCode(eventId, hostId) {
 }
 
 export function usableInvite(data, invite) {
+  return validInviteAccount(data, invite) && !data.hosts.some(host => host.id === invite.createdBy);
+}
+
+export function validInviteAccount(data, invite) {
   if (!invite || invite.revokedAt) return false;
   if (invite.claimedAccountId != null) {
     return [...data.members, ...data.hosts].some(account =>
@@ -82,13 +86,7 @@ export function eventCommands({ data, user, commit, toast, scanSession }) {
 
   const createInvite = ({ eventId, role, capacity = 10 }) => {
     const event = data.events.find((item) => item.id === Number(eventId) && !item.deletedAt);
-    const allowedRoles = user?.role === ROLES.GLOBAL_ADMIN
-      ? [ROLES.SUPERHOST, ROLES.HOST, ROLES.SUPERVISOR, ROLES.GATE_SCANNER]
-      : user?.role === ROLES.SUPERHOST && Number(user.eventId) === Number(eventId)
-        ? [ROLES.HOST, ROLES.SUPERVISOR, ROLES.GATE_SCANNER]
-        : user?.role === ROLES.HOST && Number(user.eventId) === Number(eventId)
-          ? [ROLES.GATE_SCANNER]
-          : [];
+    const allowedRoles = inviteRoles(user, eventId);
     if (!event || !allowedRoles.includes(role)) return null;
     const token = globalThis.crypto?.randomUUID?.().replaceAll("-", "") ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
     const invite = { id: crypto.randomUUID().replaceAll("-", "").slice(0, 20), token, eventId: event.id, role, capacity: role === ROLES.HOST ? Math.max(1, Number(capacity) || 10) : null, createdBy: user.id, createdAt: new Date().toISOString(), expiresAt: null, claimedAt: null, revokedAt: null };
@@ -99,7 +97,7 @@ export function eventCommands({ data, user, commit, toast, scanSession }) {
   const revokeInvite = (inviteId) => {
     const invite = (data.invites ?? []).find((item) => item.id === inviteId && !item.revokedAt);
     if (!invite) return false;
-    const canManage = user?.role === ROLES.GLOBAL_ADMIN || (user?.role === ROLES.SUPERHOST && invite.role !== ROLES.SUPERHOST && Number(user.eventId) === invite.eventId) || (user?.role === ROLES.HOST && invite.createdBy === user.id && invite.role === ROLES.GATE_SCANNER && Number(user.eventId) === invite.eventId);
+    const canManage = inviteRoles(user, invite.eventId).includes(invite.role);
     if (!canManage) return false;
     const invites = data.invites.map((item) => item.id === invite.id ? { ...item, revokedAt: new Date().toISOString() } : item);
     commit({ ...data, invites }, "account-invite-revoked", invite.eventId, invite.role);
