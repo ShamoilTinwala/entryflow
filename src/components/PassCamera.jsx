@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { readPassFrame } from "../lib/qrReader";
+import { FiArrowUpRight, FiCamera, FiSquare } from "react-icons/fi";
 
 function cameraMessage(error) {
   if (error.name === "NotAllowedError") return "Allow camera access in your browser’s site settings, then try again.";
@@ -65,11 +66,13 @@ export default function PassCamera({ onCode, disabled }) {
   }, [active, disabled]);
 
   return <div className="space-y-2">
-    <video hidden={!active} ref={videoRef} className="max-h-[32dvh] w-full rounded-xl bg-gray-950 object-contain" muted playsInline />
+    <video hidden={!active} ref={videoRef} className="max-h-[32dvh] w-full rounded-xl bg-ink object-contain" muted playsInline />
     <button type="button" disabled={disabled} onClick={() => { setError(""); setActive(!active); }}
-      className="min-h-12 w-full rounded-xl bg-slate-900 px-4 py-3 font-semibold text-white disabled:opacity-50">
+      className="flex min-h-16 w-full items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-left font-semibold text-primary-foreground hover:bg-primary-hover disabled:opacity-50">
+      <span className="grid size-10 place-items-center rounded-full bg-ink text-primary">{active ? <FiSquare aria-hidden="true" /> : <FiCamera aria-hidden="true" size={20} />}</span>
       {active ? "Stop camera" : "Scan QR with camera"}
+      <FiArrowUpRight aria-hidden="true" className="ml-auto" />
     </button>
-    {error && <p role="alert" className="text-sm text-amber-700">{error}</p>}
+    {error && <p role="alert" className="text-sm text-warning">{error}</p>}
   </div>;
 }

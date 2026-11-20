@@ -82,13 +82,13 @@ export function HostedProvider({children}) {
   const events = snapshot.events.filter(e=>!e.deletedAt);
   const guests = snapshot.guests.filter(p=>!p.deletedAt);
   const stats = [
-    {title:"Total Events",value:events.length,color:"text-blue-600"},
-    {title:"Live Events",value:events.filter(e=>e.status==="Live").length,color:"text-green-600"},
-    {title:"Entries",value:snapshot.entries.filter(e=>!e.reversedAt && e.action.includes("check-in")).reduce((sum,e)=>sum+e.count,0),color:"text-purple-600"},
+    {title:"Total Events",value:events.length,color:"text-primary"},
+    {title:"Live Events",value:events.filter(e=>e.status==="Live").length,color:"text-positive"},
+    {title:"Entries",value:snapshot.entries.filter(e=>!e.reversedAt && e.action.includes("check-in")).reduce((sum,e)=>sum+e.count,0),color:"text-primary"},
   ];
   const methods = Object.fromEntries(actions.map(action=>[action,(...args)=>perform(action,action==="logout"?[]:args)]));
   return <AppContext.Provider value={{...snapshot,...methods,hosted:true,user,stats,event:events.find(e=>e.id===user?.eventId),allEvents:snapshot.events,allGuests:snapshot.guests,events,guests}}>
-    {error && <p role="alert" className="bg-amber-100 p-2 text-center">Connection interrupted. Displaying the last synced data.</p>}
+    {error && <p role="alert" className="bg-warning-surface p-2 text-center text-warning">Connection interrupted. Displaying the last synced data.</p>}
     {children}
   </AppContext.Provider>;
 }

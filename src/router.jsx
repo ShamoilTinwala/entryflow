@@ -1,12 +1,13 @@
 import { createBrowserRouter } from "react-router-dom";
 import Login from "./pages/Login";
-import AdminDashboard from "./pages/AdminDashboard";
 import Hosts from "./pages/Hosts";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import HostDetail from "./pages/HostDetail";
 import { lazy, Suspense } from "react";
-// This route module exports the router, while the camera screen loads on demand.
+// Load role-specific screens when their routes open.
+// eslint-disable-next-line react-refresh/only-export-components
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 // eslint-disable-next-line react-refresh/only-export-components
 const Scanner = lazy(() => import("./pages/Scanner"));
 import EventInsights from "./pages/EventInsights";
@@ -38,7 +39,7 @@ const router = createBrowserRouter([
       { path: "/my-event", element: withRoleAccess(<EventDetail />) },
       { path: "/my-passes", element: withRoleAccess(<HostPasses />) },
       { path: "/supervisor", element: withRoleAccess(<Supervisor />) },
-      { path: "/admin", element: withRoleAccess(<AdminDashboard />) },
+      { path: "/admin", element: withRoleAccess(<Suspense fallback={<p>Opening overview.</p>}><AdminDashboard /></Suspense>) },
       { path: "/events", element: withRoleAccess(<Events />) },
       { path: "/events/:id", element: withRoleAccess(<EventDetail />) },
       { path: "/hosts", element: withRoleAccess(<Hosts />) },

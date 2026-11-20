@@ -25,11 +25,11 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 shadow-xl">
+      <form onSubmit={onSubmit} className="max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto rounded-3xl bg-card p-6 shadow-xl">
         <h2 className="text-2xl font-bold">Create event account</h2>
         {selectableEvents.length > 1 && !eventId && (
           <label className="block text-sm font-medium">Event
-            <select required className="mt-2 w-full rounded-xl border bg-white px-4 py-3" value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })}>
+            <select required className="mt-2 w-full rounded-xl border bg-secondary px-4 py-3" value={form.eventId} onChange={(e) => setForm({ ...form, eventId: e.target.value })}>
               <option value="">Select event</option>
               {selectableEvents.map((event) => <option key={event.id} value={event.id}>{event.name}</option>)}
             </select>
@@ -37,7 +37,7 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
         )}
         {roles.length > 1 && (
           <label className="block text-sm font-medium">Role
-            <select className="mt-2 w-full rounded-xl border bg-white px-4 py-3" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            <select className="mt-2 w-full rounded-xl border bg-secondary px-4 py-3" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               {roles.map((role) => <option key={role} value={role}>{role}</option>)}
             </select>
           </label>
@@ -51,10 +51,10 @@ function CreateMemberModal({ isOpen, onClose, eventId, onlyRole }) {
         {needsQuota && <label className="block text-sm font-medium">Guest allocation
           <input required type="number" min="1" step="1" className="mt-2 w-full rounded-xl border px-4 py-3" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
         </label>}
-        <p className="text-xs text-gray-500">{hosted ? "Use a confirmed email account from Supabase Authentication, or create a reusable sign-in link for passwordless access." : "Demo accounts are stored in this browser."}</p>
+        <p className="text-xs text-muted-foreground">{hosted ? "Use a confirmed email account from Supabase Authentication, or create a reusable sign-in link for passwordless access." : "Demo accounts are stored in this browser."}</p>
         <div className="flex gap-3 pt-2">
           <button type="button" onClick={() => { setForm(initialForm()); onClose(); }} className="flex-1 rounded-xl border py-3">Cancel</button>
-          <button type="submit" className="flex-1 rounded-xl bg-blue-600 py-3 font-semibold text-white">Create account</button>
+          <button type="submit" className="flex-1 rounded-xl bg-primary py-3 font-semibold text-primary-foreground">Create account</button>
         </div>
       </form>
     </div>

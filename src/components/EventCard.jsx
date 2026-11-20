@@ -1,45 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { FiArrowUpRight, FiCalendar, FiMapPin } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
-function EventCard({ event, superHosts, hosts, entries }) {
-  const navigate = useNavigate();
-  const statusColor = {
-    Draft: "bg-gray-500",
-    Ready: "bg-yellow-500",
-    Live: "bg-green-600",
-    Closed: "bg-red-600",
-    Archived: "bg-slate-600",
-  };
-
-  return (
-    <div className="bg-white rounded-3xl shadow-md p-5 border border-gray-200">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold">{event.name}</h2>
-        <span
-          className={`px-3 py-1 rounded-full text-white text-sm ${
-            statusColor[event.status] ?? "bg-gray-500"
-          }`}
-        >
-          {event.status}
-        </span>
-      </div>
-
-      <div className="mt-5 space-y-2 text-gray-600">
-        <p>📍 {event.venue}</p>
-        <p>📅 {event.date}</p>
-        <p>👤 Super Hosts: {superHosts}</p>
-        <p>🙋 Hosts: {hosts}</p>
-        <p>🎟 Entries: {entries}</p>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => navigate(`/events/${event.id}`)}
-        className="mt-6 w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition"
-      >
-        Open Event
-      </button>
+export default function EventCard({ event, superHosts, hosts, entries }) {
+  return <article className="flex flex-col justify-between gap-5 rounded-3xl border bg-card p-5">
+    <div><div className="flex items-start justify-between gap-3">
+      <h2 className="text-xl font-semibold">{event.name}</h2>
+      <span className={`rounded-full px-3 py-1 text-sm ${event.status === "Live" ? "bg-positive-surface text-positive" : "bg-secondary text-muted-foreground"}`}>{event.status}</span>
     </div>
-  );
+    <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+      <p className="flex items-center gap-2"><FiMapPin aria-hidden="true" />{event.venue}</p>
+      <p className="flex items-center gap-2"><FiCalendar aria-hidden="true" />{event.date}</p>
+    </div></div>
+    <div><dl className="grid grid-cols-3 gap-2 border-t py-4">
+      {[["Superhosts", superHosts], ["Hosts", hosts], ["Entries", entries]].map(([label, value]) => <div key={label}><dt className="text-sm text-muted-foreground">{label}</dt><dd className="text-xl font-semibold tabular-nums">{value}</dd></div>)}
+    </dl><Link to={`/events/${event.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-secondary px-4 text-sm font-semibold">Open event <FiArrowUpRight /></Link></div>
+  </article>;
 }
-
-export default EventCard;

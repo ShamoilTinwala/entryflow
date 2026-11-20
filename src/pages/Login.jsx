@@ -33,60 +33,26 @@ function Login() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8"
-      >
-        <h1 className="text-3xl font-bold text-center text-blue-600">
-          EntryFlow
-        </h1>
-        <p className="text-center text-gray-500 mt-2">Event Entry Management</p>
-        <p className="text-center text-sm text-gray-400 mt-2">
-          {hosted ? "Sign in with the email registered by your event administrator." : "Local demo sign-in. Use any password of four or more characters."}
-        </p>
-
-        <div className="mt-8 space-y-4">
-          <div>
-            <input
-              type="email"
-              placeholder="Email"
-              className="w-full border rounded-lg p-3"
-              {...register("email")}
-            />
-            {errors.email && (
-              <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>
-            )}
-          </div>
-
-          <div>
-            <input
-              type="password"
-              placeholder="Password"
-              className="w-full border rounded-lg p-3"
-              {...register("password")}
-            />
-            {errors.password && (
-              <p className="text-sm text-red-600 mt-1">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white rounded-lg p-3 hover:bg-blue-700 transition"
-          >
-            Login
-          </button>
-          {!hosted && <p className="text-xs text-center text-gray-500">
-            First time? Use <span className="font-mono">admin@entryflow.local</span> to access the demo Global Admin account.
-          </p>}
-        </div>
+  return <main className="grid min-h-dvh place-items-center bg-background p-4">
+    <section className="ticket">
+      <header className="feature-tile rounded-none px-6 py-7 sm:p-8">
+        <div className="grooves" aria-hidden="true" />
+        <div className="brand"><img src="/favicon.svg" alt="" />EntryFlow</div>
+        <h1 className="mt-10 text-4xl font-semibold tracking-tight">Sign in</h1>
+      </header>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 p-6 sm:p-8">
+        <p className="text-sm text-muted-foreground">{hosted ? "Use the email registered with your event administrator." : "Local demo. Use any password of four or more characters."}</p>
+        <div><label className="block text-sm font-medium" htmlFor="email">Email</label>
+          <input id="email" type="email" autoComplete="username" className="mt-1 min-h-12 w-full rounded-xl border px-3" {...register("email")} />
+          {errors.email && <p role="alert" className="mt-1 text-sm text-destructive">{errors.email.message}</p>}</div>
+        <div><label className="block text-sm font-medium" htmlFor="password">Password</label>
+          <input id="password" type="password" autoComplete="current-password" className="mt-1 min-h-12 w-full rounded-xl border px-3" {...register("password")} />
+          {errors.password && <p role="alert" className="mt-1 text-sm text-destructive">{errors.password.message}</p>}</div>
+        <button type="submit" className="min-h-12 w-full rounded-full bg-primary font-semibold text-primary-foreground hover:bg-primary-hover">Sign in</button>
+        {!hosted && <p className="text-sm text-muted-foreground">Demo admin email <span className="break-all font-mono">admin@entryflow.local</span></p>}
       </form>
-    </div>
-  );
+    </section>
+  </main>;
 }
 
 export default Login;

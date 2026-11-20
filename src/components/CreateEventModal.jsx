@@ -42,7 +42,7 @@ function CreateEventModal({ isOpen, onClose }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="max-h-[90dvh] overflow-y-auto bg-white rounded-3xl w-full max-w-2xl p-5 sm:p-6"
+        className="max-h-[90dvh] overflow-y-auto bg-card rounded-3xl w-full max-w-2xl p-5 sm:p-6"
       >
         <h2 className="text-2xl font-bold mb-6">Create Event</h2>
 
@@ -52,11 +52,11 @@ function CreateEventModal({ isOpen, onClose }) {
             <input
               type="text"
               {...register("name")}
-              className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-ring"
               placeholder="Annual Event 2027"
             />
             {errors.name && (
-              <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>
+              <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
             )}
           </div>
 
@@ -65,11 +65,11 @@ function CreateEventModal({ isOpen, onClose }) {
             <input
               type="text"
               {...register("venue")}
-              className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-ring"
               placeholder="Venue Name"
             />
             {errors.venue && (
-              <p className="text-sm text-red-600 mt-1">{errors.venue.message}</p>
+              <p className="text-sm text-destructive mt-1">{errors.venue.message}</p>
             )}
           </div>
 
@@ -78,10 +78,10 @@ function CreateEventModal({ isOpen, onClose }) {
             <input
               type="date"
               {...register("date")}
-              className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-ring"
             />
             {errors.date && (
-              <p className="text-sm text-red-600 mt-1">{errors.date.message}</p>
+              <p className="text-sm text-destructive mt-1">{errors.date.message}</p>
             )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -104,7 +104,7 @@ function CreateEventModal({ isOpen, onClose }) {
           </button>
           <button
             type="submit"
-            className="flex-1 bg-blue-600 text-white rounded-xl py-3 font-semibold"
+            className="flex-1 bg-primary text-primary-foreground rounded-xl py-3 font-semibold"
           >
             Create Event
           </button>

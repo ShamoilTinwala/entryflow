@@ -2,43 +2,19 @@ import { Outlet, useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 
 const titles = {
-  "/admin": "Admin Dashboard",
-  "/events": "Events",
-  "/hosts": "Hosts",
-  "/scanner": "Scanner",
-  "/live": "Live Stats",
-  "/settings": "Settings",
-  "/my-event": "My Event",
-  "/my-passes": "My Guest Passes",
-  "/supervisor": "Gate Overview",
+  "/admin": "Overview", "/events": "Events", "/hosts": "Hosts", "/scanner": "Gate scanner",
+  "/live": "Live stats", "/settings": "Settings & audit", "/my-event": "My event",
+  "/my-passes": "My guest passes", "/supervisor": "Gate overview",
 };
 
-function pageTitle(pathname) {
-  if (pathname.startsWith("/events/") && pathname !== "/events") return "Event";
-  if (pathname.startsWith("/hosts/") && pathname !== "/hosts") return "Host";
-  return titles[pathname] ?? "EntryFlow";
-}
-
-function Layout() {
+export default function Layout() {
   const { pathname } = useLocation();
-
-  return (
-    <div className="flex min-h-screen flex-col bg-gray-100 md:flex-row">
-      <Sidebar />
-
-      <div className="flex-1 min-w-0">
-        <header className="bg-white border-b px-4 py-3 md:px-8 md:py-5">
-          <h2 className="text-3xl font-bold text-gray-800">
-            {pageTitle(pathname)}
-          </h2>
-        </header>
-
-        <main className="p-3 sm:p-5 md:p-8">
-          <Outlet />
-        </main>
-      </div>
+  const title = titles[pathname] ?? (pathname.startsWith("/hosts/") ? "Host passes" : "Event details");
+  return <div className="app-shell flex min-h-dvh flex-col md:flex-row">
+    <Sidebar />
+    <div className="workspace min-w-0 flex-1">
+      <h1 className="page-heading">{title}</h1>
+      <main><Outlet /></main>
     </div>
-  );
+  </div>;
 }
-
-export default Layout;

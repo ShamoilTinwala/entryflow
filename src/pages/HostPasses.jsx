@@ -6,9 +6,9 @@ import { ROLES } from "../lib/roles";
 import AccountInvites from "../components/AccountInvites";
 import { copyText, downloadQr, eventInvitation, publicUrl, sharePass, shareWhatsApp } from "../lib/sharing";
 
-const field = "mt-1 block min-h-11 w-full min-w-0 rounded-lg border bg-white px-3 text-base";
+const field = "mt-1 block min-h-11 w-full min-w-0 rounded-lg border bg-secondary px-3 text-base";
 const button = "min-h-11 rounded-lg border px-3 py-2 text-sm font-medium";
-const primary = "min-h-11 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-50";
+const primary = "min-h-11 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-50";
 
 function PassCard({ pass, event, entries, remaining, canManage, updateGuest, deleteGuest }) {
   const [editing, setEditing] = useState(false);
@@ -32,35 +32,35 @@ function PassCard({ pass, event, entries, remaining, canManage, updateGuest, del
     if (await updateGuest(pass.id, { primaryName: draft.primaryName.trim(), totalCount: Number(draft.totalCount) })) setEditing(false);
   }
 
-  return <article id={`guest-pass-${pass.id}`} className="min-w-0 scroll-mt-4 rounded-xl border bg-white p-3 sm:p-4">
+  return <article id={`guest-pass-${pass.id}`} className="min-w-0 scroll-mt-4 rounded-xl border bg-card p-3 sm:p-4">
     <h4 className="break-words text-lg font-semibold">{pass.primaryName}</h4>
-    <p className="text-sm text-slate-600">{description} · {pass.totalCount - pass.enteredCount} remaining</p>
+    <p className="text-sm text-muted-foreground">{description} · {pass.totalCount - pass.enteredCount} remaining</p>
     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
       <button type="button" onClick={share} className={primary}>Share pass</button>
       <button type="button" className={button} onClick={() => shareWhatsApp(`${eventInvitation(event)}\n\nGuest pass for ${pass.primaryName} · ${description}`, link())}>WhatsApp</button>
       <button type="button" className={button + " col-span-2 sm:col-span-1"} onClick={() => copyText(link()).then(() => toast.success("Pass link copied")).catch(() => toast.error("Could not copy link"))}>Copy link</button>
     </div>
     <details className="mt-1">
-      <summary className="cursor-pointer py-3 text-sm font-medium text-slate-600">QR and pass details</summary>
+      <summary className="cursor-pointer py-3 text-sm font-medium text-muted-foreground">QR and pass details</summary>
       <div className="space-y-3 border-t pt-3">
         <QRCodeSVG ref={svg} value={pass.code} size={152} marginSize={4} level="M" />
-        <p className="break-all font-mono text-xs text-slate-600">{pass.code}</p>
-        <p className="text-sm text-slate-600">{pass.insideCount} inside · {Math.max(pass.enteredCount - pass.insideCount, 0)} checked out</p>
+        <p className="break-all font-mono text-xs text-muted-foreground">{pass.code}</p>
+        <p className="text-sm text-muted-foreground">{pass.insideCount} inside · {Math.max(pass.enteredCount - pass.insideCount, 0)} checked out</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={button} onClick={() => downloadQr(svg.current, `entryflow-${pass.code}.png`).then(() => toast.success("QR image saved")).catch(() => toast.error("Could not save QR image"))}>Save QR image</button>
           {canManage && !locked && !editing && <>
             <button type="button" className={button} onClick={() => { setDraft({ primaryName: pass.primaryName, totalCount: pass.totalCount }); setEditing(true); }}>Edit pass</button>
-            <button type="button" className={button + " text-red-700"} onClick={() => { if (window.confirm(`Delete this unused pass and return ${pass.totalCount} spots?`)) deleteGuest(pass.id); }}>Delete</button>
+            <button type="button" className={button + " text-destructive"} onClick={() => { if (window.confirm(`Delete this unused pass and return ${pass.totalCount} spots?`)) deleteGuest(pass.id); }}>Delete</button>
           </>}
         </div>
-        {locked && <p className="text-sm text-slate-600">Pass locked after first check-in.</p>}
+        {locked && <p className="text-sm text-muted-foreground">Pass locked after first check-in.</p>}
         {editing && canManage && !locked && <form onSubmit={save} className="grid gap-3">
           <label className="text-sm font-medium">Guest name<input required minLength={2} className={field} value={draft.primaryName} onChange={e => setDraft({ ...draft, primaryName: e.target.value })} /></label>
           <label className="text-sm font-medium">Group size<input required type="number" min="1" max={Number(pass.totalCount) + remaining} className={field} value={draft.totalCount} onChange={e => setDraft({ ...draft, totalCount: e.target.value })} /></label>
           <div className="flex gap-2"><button className={primary}>Save changes</button><button type="button" className={button} onClick={() => setEditing(false)}>Cancel</button></div>
         </form>}
         {entries.length > 0 && <details><summary className="cursor-pointer py-2 text-sm">Entry history ({entries.length})</summary>
-          {entries.map(entry => <p key={entry.id} className="py-1 text-sm text-slate-600">{entry.action} · {entry.count} · {entry.actorName} · {new Date(entry.scannedAt).toLocaleString()}</p>)}
+          {entries.map(entry => <p key={entry.id} className="py-1 text-sm text-muted-foreground">{entry.action} · {entry.count} · {entry.actorName} · {new Date(entry.scannedAt).toLocaleString()}</p>)}
         </details>}
       </div>
     </details>
@@ -88,7 +88,7 @@ function HostPasses({ hostId: selectedHostId }) {
     if (createdId != null) document.getElementById(`guest-pass-${createdId}`)?.scrollIntoView({ block: "nearest" });
   }, [createdId]);
 
-  if (!host || !assignedEvent) return <p className="rounded-2xl bg-white p-6 text-gray-600">Host account not found or inactive.</p>;
+  if (!host || !assignedEvent) return <p className="rounded-2xl bg-card p-6 text-muted-foreground">Host account not found or inactive.</p>;
 
   async function create(e) {
     e.preventDefault();
@@ -108,12 +108,13 @@ function HostPasses({ hostId: selectedHostId }) {
   }
 
   return <div className="mx-auto max-w-2xl space-y-4">
-    <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
-      <div><p className="break-words text-sm text-slate-600">{assignedEvent.name} · {host.name}</p>
-        <h2 className="mt-1 text-xl font-semibold">Create a guest pass</h2>
-        <p className="mt-1 text-sm text-slate-600">{remaining} of {host.capacity} guest spots available</p>
+    <section className="overflow-hidden rounded-3xl bg-card">
+      <div className="feature-tile rounded-none bg-clay p-4 sm:p-6"><div className="grooves" aria-hidden="true" />
+        <p className="break-words text-sm font-medium">{assignedEvent.name} · {host.name}</p>
+        <h2 className="mt-3 text-2xl font-semibold">Create a guest pass</h2>
+        <p className="mt-1 text-sm">{remaining} of {host.capacity} guest spots available</p>
       </div>
-      {canManage && <form onSubmit={create} className="space-y-3">
+      {canManage && <form onSubmit={create} className="space-y-3 p-4 sm:p-6">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
           <label className="text-sm font-medium">Guest name<input required minLength={2} className={field} value={name} onChange={e => setName(e.target.value)} /></label>
           <label className="text-sm font-medium">Group size<input required type="number" inputMode="numeric" min={1} max={remaining || 1} className={field} value={count} onChange={e => setCount(e.target.value)} /></label>
@@ -121,10 +122,10 @@ function HostPasses({ hostId: selectedHostId }) {
         <button disabled={creating || !remaining} className={primary + " w-full"}>{creating ? "Creating…" : "Create pass"}</button>
       </form>}
     </section>
-    <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
+    <section className="space-y-3 rounded-2xl bg-card p-4 shadow-sm sm:p-6">
       <h3 className="text-xl font-semibold">Guest passes ({passes.length})</h3>
       {passes.length > 0 && <input type="search" aria-label="Search guest passes" placeholder="Search by guest name or pass code" value={search} onChange={e => setSearch(e.target.value)} className={field} />}
-      {visible.length === 0 && <p className="text-sm text-slate-600">{passes.length ? "No matching passes." : "Your first pass will appear here, ready to share."}</p>}
+      {visible.length === 0 && <p className="text-sm text-muted-foreground">{passes.length ? "No matching passes." : "Your first pass will appear here, ready to share."}</p>}
       {visible.map(pass => <PassCard key={pass.id} pass={pass} event={assignedEvent} remaining={remaining} canManage={canManage}
         entries={entries.filter(entry => entry.passId === pass.id && !entry.reversedAt)} updateGuest={updateGuest} deleteGuest={deleteGuest} />)}
     </section>
